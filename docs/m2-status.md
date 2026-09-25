@@ -1,6 +1,6 @@
 # M2 implementation and remaining gates
 
-M2 runtime gate is **open**. No integration, E2E, simulator or device test has been run. iOS code is uncompiled on this Linux host. Local packages are provisional, platform-specific, not published customer releases.
+M2 runtime gate is **open**. This document records the original Linux implementation evidence; current Mac builds and Android/iOS runtime results are in [Testing on a Mac](testing.md), including iOS Debug email OTP, protected API access, sign-out and session restoration after restart. Local packages are provisional, platform-specific, not published customer releases.
 
 ## Implementation
 

@@ -2,11 +2,11 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 [[ $(uname -s) == Darwin ]] || { echo 'Requires macOS, Xcode and xcodegen' >&2; exit 2; }
-python3 "$root/scripts/check-native-sources.py"
+python3 "$root/scripts/prepare-ios-source.py"
 cd "$root/native/ios"
 xcodegen generate
 mkdir -p RowndMauiBridge.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
-cp ../../../supertokens-rownd-ios/Package.resolved RowndMauiBridge.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+cp build/patched-native/Package.resolved RowndMauiBridge.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 for platform in iphoneos iphonesimulator; do
   xcodebuild archive -project RowndMauiBridge.xcodeproj -scheme RowndMauiBridge \
     -sdk "$platform" -archivePath "build/$platform.xcarchive" \

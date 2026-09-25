@@ -15,7 +15,7 @@ internal sealed class PlatformBridge : INativeBridge
         RowndLinks.Configure(config);
         native.SetStateListener((ready, authenticated, userId) => StateChanged?.Invoke(new(ready, authenticated, userId)));
         native.Configure(config.AppKey, config.ApiDomain.AbsoluteUri.TrimEnd('/'), config.ApiBasePath,
-            config.HubUrl.AbsoluteUri, config.AppLinkScheme, error =>
+            config.HubUrl.AbsoluteUri.TrimEnd('/'), config.AppLinkScheme, error =>
             {
                 if (error is null) RowndLinks.NativeReady();
                 completion(error);

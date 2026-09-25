@@ -2,13 +2,58 @@
 
 **M2 runtime acceptance remains open.** Android Debug and Release email OTP have limited emulator evidence; other runtime gates remain.
 
-### iOS simulator check after 84fbfdf (Xcode 26.2, iOS 26.3)
+### iOS Debug runtime verification — 2026-09-25
+
+On checkout `778bcff` plus the fixes below, the source Debug sample passed computer-use checks on the iPhone 17 Pro iOS 26.3 simulator, using .NET/workload set 10.0.200, MAUI 10.0.20, iOS workload 26.2.10217 and Xcode 26.2 (17C52). The 73 managed tests, both native bridge XCTest cases, and shared fixture `environment` check passed. The two bridge XCTest cases only validate invalid-configuration rejection; the added Swift authentication regressions are described below.
+
+Two confirmed problems were corrected:
+
+- The sample had no launch-screen declaration. Its built manifest lacked `UILaunchStoryboardName`; previous Maestro logs reported a 320×480-point viewport, and simulator screenshots showed a letterboxed form. `EnableBlankMauiSplashScreen=true` generates `MauiSplash`; after a clean rebuild/reinstall the app fills the screen. Clean the sample's iOS intermediates when enabling this property: stale resizetizer stamps initially caused a missing `MauiInfo.plist` error.
+- The managed iOS bridge passed `HubUrl.AbsoluteUri` with a trailing slash to native code, which concatenates `/mobile_app`. The actual Hub sheet displayed `Cannot GET //mobile_app`. Trimming trailing slashes at the iOS bridge boundary fixes the request; no fixture routing workaround was used.
+
+Computer use exposed the MAUI automation IDs and filled the configuration with the fixture key and localhost URLs. The native Hub exposed little accessibility content, so its input/buttons were driven using fresh screenshots. Verify focus before typing and inspect the entered value: the first email-entry attempt dropped leading characters. The capture was retrieved for the exact synthetic address shown by the Hub. iOS also requested permission to paste the test configuration, which was explicitly approved. No black-screen failure recurred during this run; the original Maestro empty-tree/black-screen behavior is not proven fixed, and the Maestro/Appium scripts were not rerun.
+
+Verified runtime sequence:
+
+1. Configure, open native Hub, request email OTP, read the local capture, enter the six-digit code, and observe authenticated state.
+2. Call the backend-protected API and observe its verified user ID matching the authenticated identity.
+3. Terminate/relaunch the app process without reinstalling or clearing data, re-enter the same configuration, and observe authentication restored without another OTP. A second protected request returns the same user ID and session handle.
+4. Sign out, observe `Signed out`, call the protected action and observe `No session`, then reopen the signed-out Hub.
+
+Persistence evidence covers native session restoration after explicit reconfiguration; the sample does not persist its editable configuration and this does not establish automatic cold-start/deep-link behavior. After successful protected requests, the status label changed to `Authenticated: identity pending` despite the correct backend identity; this led to the native identity-state patch described below. Release/package-consumer runtime, physical devices, phone callbacks, expiry/recovery, and a repeatable unattended iOS driver remain open gates.
+
+The shared Hub/Core/plugin fixture used localhost API 3137 and Hub 8787, Node v26.7.0, the locked Rownd plugin 0.3.0-beta.2, Postgres 14 and Core image digest `supertokens/supertokens-postgresql@sha256:8302ef1766b05c2b85cbed85de8d6e7fb38dedfe041918327e24e5b33d6f2590`. Local HTTP worked on this simulator without an ATS exception; this is not evidence for arbitrary hosts or physical devices. The image remains unpinned in fixture startup.
+
+The first attempts from a restricted agent sandbox failed before tests ran (CoreSimulator connection errors and Swift cache writes denied). With approved elevated execution, both native tests passed. Those runner failures were not evidence of an application crash.
+
+### Native identity-state patch
+
+The pinned iOS SDK's authenticator cache does not observe profile actions that populate `auth.userId`. A subsequent token read or refresh could publish the older auth snapshot and erase the hydrated identity. `native/ios/auth-identity.patch` makes the compatibility-state read, derivation, persistence and dispatch run together on the main actor using the current store. Same-session identity is preserved; replacement sessions still clear profile state and failed persistence does not publish changes. A second bug omitted `userId` from `AuthState.CodingKeys`: saving and reloading compatibility state erased the ID even with the cache fix. The patch persists the optional `user_id` field; older saved states remain decodable and signed-out states retain no identity.
+
+`build-native-ios.sh` now calls `prepare-ios-source.py`, which validates the existing source pins, copies tracked Swift package inputs into `native/ios/build/patched-native`, applies the reviewed patch with zero fuzz, and adds the regression tests. XcodeGen links this overlay. The sibling iOS checkout and its pin remain unchanged. Rebuild the XCFramework before rebuilding or packaging the managed binding after changing this patch. A normal incremental .NET build reused the old embedded framework during verification; clean the iOS consumer and its project references first (use the appropriate configuration/runtime for other consumers):
+
+```sh
+dotnet clean samples/Passwordless/Passwordless.csproj -c Debug \
+  -p:RowndTargetFrameworks=net10.0-ios \
+  -p:RowndApplicationId="$ROWND_APPLICATION_ID" -p:RuntimeIdentifier=iossimulator-arm64
+```
+
+Run the dedicated regression suite with an explicit simulator destination:
+
+```sh
+ROWND_IOS_TEST_DESTINATION='platform=iOS Simulator,id=SIMULATOR_UDID' \
+  bash scripts/test-native-ios.sh
+```
+
+The suite covers profile hydration followed by token read and same-session refresh, replacement-session profile clearing, persistence failure, serialization/reload, legacy decoding and signed-out state. These use the actual patched Swift authenticator with a controlled session client, not C# mocks. All five regression tests (six cases, including both token read and refresh) pass with the patch; the original source fails both identity-preservation cases (eight failed assertions). The existing 13 `AuthTests` also pass. After rebuilding both XCFramework slices and cleaning/rebuilding the Debug sample, computer use verified that the authenticated ID remains equal to the backend-verified ID after protected requests, including after process termination, relaunch and explicit reconfiguration. Sign-out clears authentication and the next protected action reports `No session`.
+
+### Earlier iOS simulator check after 84fbfdf (Xcode 26.2, iOS 26.3)
 
 On Apple Silicon with Xcode 26.2, `bash scripts/build-native-ios.sh` archives both slices and creates the XCFramework; reruns now replace the previously generated output. Both native bridge XCTest cases pass on an iOS 26.3 simulator (`xcodebuild test -project native/ios/RowndMauiBridge.xcodeproj -scheme RowndMauiBridge -destination 'platform=iOS Simulator,id=SIMULATOR_UDID' -derivedDataPath native/ios/build/test-derived CODE_SIGNING_ALLOWED=NO`). The shared Hub/Core/plugin fixture's `environment` integration check and 73 managed tests pass.
 
 The earlier .NET 10.0.401 / iOS workload 26.5.10318 pin required Xcode 26.6; skipping its version check still failed because Xcode 26.2 lacks the iOS 26.5 SDK. The supported .NET 10.0.200 workload set instead supplies iOS 26.2.10217, which explicitly targets Xcode 26.2. With the matching SDK/workload set, the source Debug simulator app and isolated Release package consumer build **without Xcode validation or linker overrides**; the Android Debug sample also builds. Clean iOS intermediates when switching workload sets to avoid reusing native libraries from 26.5. The Debug iOS app installs, launches, and shows the configuration form on the iOS 26.3 simulator. A settled simulator screenshot shows the whole form with no keyboard, but Maestro 2.5.1 exposes only the app window in its accessibility tree. Coordinate-based text input sometimes leaves the simulator showing a black app window until the app is relaunched. iOS OTP, protected request, sign-out, and restart remain unverified.
 
-Previously recorded Linux results: 72 managed unit/mock tests and 58 native JVM tests passed; Android native/binding builds, packaging, package inspection and isolated package-consumer Release build passed. See [M2 status](m2-status.md) for earlier evidence and warnings. On a Mac with .NET 10.0.401, JDK 21.0.12.1 and Xcode 26.2, 73 managed tests and 58 native JVM tests passed; Android Debug sample, packages and isolated Release consumer built. The shared Docker fixture's `environment` integration check passed against SuperTokens Core and a backend running `@supertokens-plugins/rownd-nodejs` (health, unauthenticated 401, and plugin-owned migration route). Source-built Android Release and Debug samples on an API 34 emulator completed email OTP through the native Hub, returned the expected user ID from the backend-protected API, signed out, received `No session` on another protected request, and reopened the native Hub. Appium drove native controls and direct WebView DevTools drove Hub controls; the full Appium script did not pass. The original Debug sample crashed after successful OTP consumption on both API 34 and 36.1 (Mono SIGSEGV in `mono_assembly_name_new`/`monodroid_load_assembly` on `DefaultDispatch`). The Android bridge now defers managed state notifications until after the native callback returns: three Debug OTP cycles (including one after process restart) completed without the crash. Disabling `UseInterpreter` alone did **not** fix it; a second run crashed identically. Phone and iOS authentication runtime checks remain unrun.
+Previously recorded Linux results: 72 managed unit/mock tests and 58 native JVM tests passed; Android native/binding builds, packaging, package inspection and isolated package-consumer Release build passed. See [M2 status](m2-status.md) for earlier evidence and warnings. On a Mac with .NET 10.0.401, JDK 21.0.12.1 and Xcode 26.2, 73 managed tests and 58 native JVM tests passed; Android Debug sample, packages and isolated Release consumer built. The shared Docker fixture's `environment` integration check passed against SuperTokens Core and a backend running `@supertokens-plugins/rownd-nodejs` (health, unauthenticated 401, and plugin-owned migration route). Source-built Android Release and Debug samples on an API 34 emulator completed email OTP through the native Hub, returned the expected user ID from the backend-protected API, signed out, received `No session` on another protected request, and reopened the native Hub. Appium drove native controls and direct WebView DevTools drove Hub controls; the full Appium script did not pass. The original Debug sample crashed after successful OTP consumption on both API 34 and 36.1 (Mono SIGSEGV in `mono_assembly_name_new`/`monodroid_load_assembly` on `DefaultDispatch`). The Android bridge now defers managed state notifications until after the native callback returns: three Debug OTP cycles (including one after process restart) completed without the crash. Disabling `UseInterpreter` alone did **not** fix it; a second run crashed identically. At that time, phone and iOS authentication runtime checks remained unrun; see the newer iOS evidence above.
 
 ## Tools and sibling checkouts
 
@@ -91,7 +136,7 @@ bash scripts/pack.sh ios
 bash scripts/verify-package.sh ios -p:RuntimeIdentifier=iossimulator-arm64 -p:CodesignKey=- -p:CodesignProvision=
 ```
 
-Use `iossimulator-x64` on Intel. The native script archives unsigned device/simulator slices and creates `native/ios/build/RowndMauiBridge.xcframework`, using the sibling `Package.resolved`. The XCFramework, iOS packages, source Debug app, and isolated Release package consumer compile on Xcode 26.2 with the pinned SDK/workload set; authentication and native linkage at runtime remain unverified. Verify Swift/ReSwift linkage, generated Objective-C selectors, resources (`Bundle.module`, GoogleSignIn) and Swift runtime embedding with a package-consumer app. Physical-device builds require your actual bundle ID, team/provisioning and signing settings.
+Use `iossimulator-x64` on Intel. The native script archives unsigned device/simulator slices and creates `native/ios/build/RowndMauiBridge.xcframework`, using the sibling `Package.resolved`. The XCFramework, iOS packages, source Debug app, and isolated Release package consumer compile on Xcode 26.2 with the pinned SDK/workload set; source Debug authentication now has simulator evidence above; isolated Release package-consumer runtime linkage remains unverified. Verify Swift/ReSwift linkage, generated Objective-C selectors, resources (`Bundle.module`, GoogleSignIn) and Swift runtime embedding with a package-consumer app. Physical-device builds require your actual bundle ID, team/provisioning and signing settings.
 
 Pinned iOS `Rownd.configure` can call **`fatalError`** on SuperTokens/keychain/installation bootstrap failure. The facade cannot turn process-fatal errors into failed C# Tasks. A throwing native initialization hook remains required; input validation does not close this gate.
 
