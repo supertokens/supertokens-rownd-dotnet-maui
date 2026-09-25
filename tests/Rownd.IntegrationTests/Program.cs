@@ -26,12 +26,12 @@ try
         throw new InvalidOperationException();
     }
 
-    Console.WriteLine("PASS: fixture assertion only; no native authentication or device routing tested.");
+    Console.WriteLine("PASS: fixture, SuperTokens session guard and Rownd plugin route; no native authentication or device routing tested.");
     return 0;
 }
 catch
 {
     // Response bodies and callback URLs can contain credentials.
-    Console.Error.WriteLine("FAIL: check fixture URL, health, unauthenticated 401, and fresh Hub-created capture for the exact phone.");
+    Console.Error.WriteLine("FAIL: check fixture URL, health, unauthenticated 401, Rownd plugin route, and fresh Hub-created capture for the exact phone.");
     return 1;
 }

@@ -11,7 +11,7 @@ for platform in iphoneos iphonesimulator; do
   xcodebuild archive -project RowndMauiBridge.xcodeproj -scheme RowndMauiBridge \
     -sdk "$platform" -archivePath "build/$platform.xcarchive" \
     -derivedDataPath "build/$platform" -onlyUsePackageVersionsFromResolvedFile \
-    CODE_SIGNING_ALLOWED=NO SKIP_INSTALL=NO BUILD_LIBRARY_FOR_DISTRIBUTION=YES
+    CODE_SIGNING_ALLOWED=NO SKIP_INSTALL=NO
   # SwiftPM Bundle.module resolves resources alongside the aggregate framework.
   find "build/$platform/Build" -type d -name '*.bundle' -prune \
     -exec cp -R '{}' "build/$platform.xcarchive/Products/Library/Frameworks/RowndMauiBridge.framework/" \;

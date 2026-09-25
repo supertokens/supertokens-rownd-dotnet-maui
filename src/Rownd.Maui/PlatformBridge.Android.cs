@@ -7,6 +7,7 @@ namespace SuperTokens.Rownd.Maui;
 internal sealed class PlatformBridge : Java.Lang.Object, INativeBridge, IStateListener
 {
     private readonly RowndBridge native = new();
+    private readonly Android.OS.Handler mainHandler = new(Android.OS.Looper.MainLooper);
     // JNI callbacks must survive GC until the native async operation completes.
     private readonly HashSet<Java.Lang.Object> callbacks = [];
     public event Action<RowndState>? StateChanged;
@@ -23,8 +24,11 @@ internal sealed class PlatformBridge : Java.Lang.Object, INativeBridge, IStateLi
             config.ApiBasePath, config.HubUrl.AbsoluteUri, config.AppLinkScheme, callback);
     }
 
-    public void Changed(bool ready, bool authenticated, string? userId) =>
-        StateChanged?.Invoke(new(ready, authenticated, userId));
+    public void Changed(bool ready, bool authenticated, string? userId)
+    {
+        // Leave the native state collector before notifying MAUI; reentrant JNI callbacks can crash Mono.
+        mainHandler.Post(() => StateChanged?.Invoke(new(ready, authenticated, userId)));
+    }
     public void RequestSignIn() => native.RequestSignIn();
     public void SignOut() => native.SignOut();
     public void GetAccessToken(Action<string?, string?> completion)
@@ -39,6 +43,7 @@ internal sealed class PlatformBridge : Java.Lang.Object, INativeBridge, IStateLi
         native.SetStateListener(null);
         native.Close();
         native.Dispose();
+        mainHandler.Dispose();
         callbacks.Clear();
         base.Dispose();
     }

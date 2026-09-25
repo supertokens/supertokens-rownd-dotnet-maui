@@ -1,8 +1,8 @@
 # Testing on a Mac
 
-**M2 runtime acceptance remains open.** Commands below were checked against existing source interfaces; they are instructions, not evidence of a successful Mac/device run.
+**M2 runtime acceptance remains open.** Android Debug and Release email OTP have limited emulator evidence; other runtime gates remain.
 
-Previously recorded Linux results: 72 managed unit/mock tests and 58 native JVM tests passed; Android native/binding builds, packaging, package inspection and isolated package-consumer Release build passed. The integration project compiled only. See [M2 status](m2-status.md) for evidence and warnings. **All integration, Appium, emulator/device and iOS execution remains unrun.** This documentation change ran no servers or tests.
+Previously recorded Linux results: 72 managed unit/mock tests and 58 native JVM tests passed; Android native/binding builds, packaging, package inspection and isolated package-consumer Release build passed. See [M2 status](m2-status.md) for earlier evidence and warnings. On a Mac with .NET 10.0.401, JDK 21.0.12.1 and Xcode 26.2, 73 managed tests and 58 native JVM tests passed; Android Debug sample, packages and isolated Release consumer built. The shared Docker fixture's `environment` integration check passed against SuperTokens Core and a backend running `@supertokens-plugins/rownd-nodejs` (health, unauthenticated 401, and plugin-owned migration route). Source-built Android Release and Debug samples on an API 34 emulator completed email OTP through the native Hub, returned the expected user ID from the backend-protected API, signed out, received `No session` on another protected request, and reopened the native Hub. Appium drove native controls and direct WebView DevTools drove Hub controls; the full Appium script did not pass. The original Debug sample crashed after successful OTP consumption on both API 34 and 36.1 (Mono SIGSEGV in `mono_assembly_name_new`/`monodroid_load_assembly` on `DefaultDispatch`). The Android bridge now defers managed state notifications until after the native callback returns: three Debug OTP cycles (including one after process restart) completed without the crash. Disabling `UseInterpreter` alone did **not** fix it; a second run crashed identically. The iOS native XCFramework and packages built after removing the global Swift library-evolution archive override, but the iOS consumer build requires Xcode 26.6. Phone, iOS, and packaged-app runtime checks remain unrun.
 
 ## Tools and sibling checkouts
 
@@ -44,7 +44,7 @@ sdkmanager --licenses
 python3 scripts/check-native-sources.py
 ```
 
-Also required: Python 3, Node **>=22** (Hub requirement), npm using each sibling's lockfile, Docker Desktop/running Docker daemon for Testcontainers, and Xcode/command-line tools/XcodeGen for iOS. There are no exact project toolchain pins for Node/npm/Python/Docker/Appium/drivers/Chromedriver/XcodeGen; record versions used. **Matching Xcode compatibility is unverified and unpinned**: select a release compatible with the pinned iOS workload. The Linux `/home/dev/.config/rownd-android-tooling/env.sh` mentioned in earlier logs is not a Mac prerequisite.
+Also required: Python 3, Node **>=22** (Hub requirement), npm using each sibling's lockfile, Docker Desktop/running Docker daemon for Testcontainers, and Xcode/command-line tools/XcodeGen for iOS. There are no exact project toolchain pins for Node/npm/Python/Docker/Appium/drivers/Chromedriver/XcodeGen; record versions used. The pinned iOS workload **26.5.10318 requires Xcode 26.6** for .NET iOS app builds; Xcode 26.2 can archive the native XCFramework, but `verify-package.sh ios` fails its Xcode version check. Verify the complete native/package path with Xcode 26.6. The Linux `/home/dev/.config/rownd-android-tooling/env.sh` mentioned in earlier logs is not a Mac prerequisite.
 
 The shared fixture uses Android's locked Rownd Node plugin **0.3.0-beta.2**, `EMAIL_OR_PHONE`, `USER_INPUT_CODE_AND_MAGIC_LINK`. Its images are `postgres:14` and **unpinned** `supertokens/supertokens-postgresql` (no tag/digest). The startup interface has no Core-image override. Record the actual pulled digest; exact Core reproducibility remains an open gate.
 
@@ -85,7 +85,7 @@ bash scripts/pack.sh ios
 bash scripts/verify-package.sh ios -p:RuntimeIdentifier=iossimulator-arm64 -p:CodesignKey=- -p:CodesignProvision=
 ```
 
-Use `iossimulator-x64` on Intel. The native script archives unsigned device/simulator slices and creates `native/ios/build/RowndMauiBridge.xcframework`, using the sibling `Package.resolved`. **This path is uncompiled/unvalidated.** Verify Swift/ReSwift linkage, generated Objective-C selectors, resources (`Bundle.module`, GoogleSignIn) and Swift runtime embedding. Physical-device builds require your actual bundle ID, team/provisioning and signing settings.
+Use `iossimulator-x64` on Intel. The native script archives unsigned device/simulator slices and creates `native/ios/build/RowndMauiBridge.xcframework`, using the sibling `Package.resolved`. The XCFramework and iOS packages compile on Xcode 26.2, but linkage and runtime behavior remain unvalidated. Verify Swift/ReSwift linkage, generated Objective-C selectors, resources (`Bundle.module`, GoogleSignIn) and Swift runtime embedding with a package-consumer app. Physical-device builds require your actual bundle ID, team/provisioning and signing settings.
 
 Pinned iOS `Rownd.configure` can call **`fatalError`** on SuperTokens/keychain/installation bootstrap failure. The facade cannot turn process-fatal errors into failed C# Tasks. A throwing native initialization hook remains required; input validation does not close this gate.
 
@@ -102,12 +102,12 @@ Choose addresses **before startup**. Both native requests and the embedded Hub m
 
 | Target | Device-visible Mac host | Runner on Mac |
 | --- | --- | --- |
-| Android emulator | `10.0.2.2` | `127.0.0.1` |
+| Android emulator (with `adb reverse`) | `127.0.0.1` | `127.0.0.1` |
 | iOS Simulator | `127.0.0.1` | `127.0.0.1` |
 | Physical device | Reachable Mac LAN IP/hostname | `127.0.0.1` or LAN address |
 | Remote device/Appium | Host reachable from device | Host reachable from Python runner |
 
-Android emulator loopback is the emulator itself. For USB Android, explicit `adb reverse tcp:3137 tcp:3137` and `adb reverse tcp:8787 tcp:8787` permit device `127.0.0.1` URLs; configure the fixture accordingly. Physical devices otherwise need a shared network and reachable ports. Android permits development cleartext HTTP. **The iOS sample has no ATS exception in `Info.plist`**: the table describes routing, not permission to load HTTP. Verify native/WKWebView transport policy on the selected OS; if blocked, use trusted HTTPS fixture/Hub endpoints or a deliberately local development ATS configuration before E2E. This repository supplies neither a TLS proxy nor an iOS ATS setup script. Production HTTPS associations/signing are separate gates.
+On Android emulators and USB devices, run `adb -s "$ANDROID_SERIAL" reverse tcp:3137 tcp:3137` and `adb -s "$ANDROID_SERIAL" reverse tcp:8787 tcp:8787`, then configure the fixture and sample with device `127.0.0.1` URLs. `10.0.2.2` routes to the Mac but is not a secure WebView origin: the Hub's Web Crypto operations fail there. The development Android sample explicitly permits cleartext HTTP. Physical devices otherwise need a shared network and reachable ports. **The iOS sample has no ATS exception in `Info.plist`**: the table describes routing, not permission to load HTTP. Verify native/WKWebView transport policy on the selected OS; if blocked, use trusted HTTPS fixture/Hub endpoints or a deliberately local development ATS configuration before E2E. This repository supplies neither a TLS proxy nor an iOS ATS setup script. Production HTTPS associations/signing are separate gates.
 
 In a dedicated terminal in **`supertokens-rownd-hub`**, use the existing test Hub server (serves `/mobile_app` and link routes):
 
@@ -119,18 +119,30 @@ E2E_HUB_PORT=8787 node --import tsx ./test/e2e/harness/hub-server.ts
 In another terminal in **`supertokens-rownd-android`**, with Docker running:
 
 ```sh
-export ANDROID_HOST=10.0.2.2
+export ANDROID_HOST=127.0.0.1
 export ANDROID_HARNESS_PORT=3137
 export ANDROID_HUB_URL="http://$ANDROID_HOST:8787"
 export ANDROID_PUBLIC_API_URL="http://$ANDROID_HOST:3137"
 npm run test:integration:harness
 ```
 
-Substitute `ANDROID_HOST=127.0.0.1` for iOS Simulator or the Mac LAN address for physical devices. Names remain `ANDROID_*` even for MAUI iOS. Startup prints host/android/public/Hub URLs. `GET http://127.0.0.1:3137/config` returns `appKey` (fixture `test_app_key`), `publicUrl`, `hubUrl` and `/auth` configuration. Check device reachability. API binds `0.0.0.0`; the test Hub listens on its configured port. Ctrl-C stops each server; harness shutdown stops its containers.
+Substitute the Mac LAN address for physical devices without `adb reverse`. Names remain `ANDROID_*` even for MAUI iOS. Startup prints host/android/public/Hub URLs. `GET http://127.0.0.1:3137/config` returns `appKey` (fixture `test_app_key`), `publicUrl`, `hubUrl` and `/auth` configuration. Check device reachability. API binds `0.0.0.0`; the test Hub listens on its configured port. Ctrl-C stops each server; harness shutdown stops its containers.
 
 `ANDROID_PUBLIC_API_URL` controls API origin advertised in Hub app-config: changing only the sample entry is insufficient. `ANDROID_HUB_URL` takes precedence over `HUB_URL`, then default host/port. Standalone API defaults to **3137**, not the **3138** used by sibling instrumentation npm scripts.
 
 Existing lifecycle alternative: from Android, `npx tsx test-server/with-harness.ts -- <command> [args...]` starts/stops the fixture around a child. `ANDROID_E2E_LOCAL_HUB=1` additionally builds/starts the same Hub server via `local-hub.ts`; `ANDROID_HUB_DIR`, `ANDROID_HUB_PORT`, `ANDROID_HOST` configure it. The child receives `HARNESS_URL`, `ANDROID_HARNESS_URL`, `ANDROID_API_URL`, `ANDROID_HUB_URL`, `ANDROID_APP_KEY`, **not** MAUI's `ROWND_*` variables. Standalone `npm run test:integration:harness` does **not** start Hub. Sibling `test:integration` / `test:e2e` run Android instrumentation, not MAUI. Hub `npm start` uses Wrangler/watch/proxy, not the test server above.
+
+To run the MAUI environment check with automatic Hub, backend, Postgres and Core startup/cleanup, from the MAUI root:
+
+```sh
+(cd ../supertokens-rownd-android && \
+  ANDROID_E2E_LOCAL_HUB=1 ANDROID_HOST=127.0.0.1 \
+  ANDROID_PUBLIC_API_URL=http://127.0.0.1:3137 \
+  npx tsx test-server/with-harness.ts -- sh -c \
+  'ROWND_HARNESS_URL="$HARNESS_URL" ROWND_RUN_INTEGRATION=1 bash ../supertokens-rownd-dotnet-maui/scripts/test-integration.sh environment')
+```
+
+The backend initializes the locked `@supertokens-plugins/rownd-nodejs` **0.3.0-beta.2** with SuperTokens; its `/auth/plugin/rownd/app-config` route is overridden by the fixture for deterministic Hub config. The environment check instead calls the real plugin-owned `/auth/plugin/rownd/migrate` route without credentials and expects the plugin's missing-authorization error. This proves the plugin is handling requests, not that a native login completed.
 
 ## Opt-in integration checks
 
@@ -141,7 +153,7 @@ export ROWND_HARNESS_URL=http://127.0.0.1:3137
 ROWND_RUN_INTEGRATION=1 bash scripts/test-integration.sh environment
 ```
 
-Asserts `/health` success and unauthenticated `/test/protected` **401**; no native login. For the second check, first request a fresh phone challenge in the **native Hub**, then:
+Asserts `/health` success, unauthenticated `/test/protected` **401**, and a real Rownd plugin migration-route response; no native login. For the second check, first request a fresh phone challenge in the **native Hub**, then:
 
 ```sh
 ROWND_RUN_INTEGRATION=1 ROWND_TEST_PHONE='+12025550123' \
@@ -152,7 +164,7 @@ Checks an existing exact E.164 phone capture, including `preAuthSessionId`, `dis
 
 ## Install the sample and create an Appium session
 
-These instructions are **unrun**. Use Debug for WebView inspection. Android minimum API is 26. iOS sample minimum is 15, but this automation needs **iOS 16.4+** inspectable WKWebView support.
+Use Debug for WebView inspection. The Android state-callback crash and the verified bridge change are described above. Android minimum API is 26. iOS sample minimum is 15, but this automation needs **iOS 16.4+** inspectable WKWebView support.
 
 For Android, build as above, select the emulator/device via `ANDROID_SERIAL`, locate and install the actual signed APK:
 
@@ -161,6 +173,8 @@ find samples/Passwordless/bin/Debug/net10.0-android -name '*-Signed.apk'
 export APK='/absolute/path/from-the-command-above.apk'
 adb -s "$ANDROID_SERIAL" install -r "$APK"
 ```
+
+`build-sample.sh android` embeds managed assemblies into the Debug APK so direct `adb install` can launch it without .NET Fast Deployment. Use `--no-incremental` with `adb install` if an incremental installation behaves unexpectedly.
 
 For Apple Silicon simulator, **only after the iOS native build gate passes**:
 
@@ -231,11 +245,11 @@ Keep local JSON **outside the checkout**, e.g. `$HOME/.config/rownd-maui/e2e-and
 ```json
 {
   "app-key": "test_app_key",
-  "api-domain": "http://10.0.2.2:3137",
+  "api-domain": "http://127.0.0.1:3137",
   "api-path": "/auth",
-  "hub-url": "http://10.0.2.2:8787",
+  "hub-url": "http://127.0.0.1:8787",
   "link-scheme": "rowndmauisample",
-  "protected-url": "http://10.0.2.2:3137/test/protected",
+  "protected-url": "http://127.0.0.1:3137/test/protected",
   "harness-url": "http://127.0.0.1:3137",
   "application-id": "io.supertokens.maui.buildcheck",
   "email": "maui-otp-run-001@example.com",
@@ -245,7 +259,7 @@ Keep local JSON **outside the checkout**, e.g. `$HOME/.config/rownd-maui/e2e-and
 }
 ```
 
-- First six fields populate sample entries by accessibility ID. API/Hub/protected URLs are **device-visible**; `harness-url` is **runner-visible**. API origin excludes `/auth`; use `api-path`. `application-id` must match the installed package/bundle for deep links.
+- First six fields populate sample entries by automation ID (Android resource ID, iOS accessibility ID). API/Hub/protected URLs are **device-visible**; `harness-url` is **runner-visible**. API origin excludes `/auth`; use `api-path`. `application-id` must match the installed package/bundle for deep links.
 - `link-scheme` must match platform registration (`rowndmauisample` in sample) and Hub/native configuration. Callback is `rowndmauisample://account/login`.
 - `email` is used by `smoke`; `phone`/`phone-selector` by `phone-magic-link`. Use separate configs when identities have different backend IDs.
 - Pinned fixture enables a combined email/phone input. Its `phone-selector` can be `#rph-sign-in-identifier-input`: the driver's required preliminary click focuses it. If app config instead introduces phone navigation, use that UI's actual CSS selector; no universal phone-button test ID exists.
@@ -315,4 +329,4 @@ Manual acceptance still required:
 - Wrong/expired/replayed links and fixture consume counters. Exact successful callbacks are coalesced for two seconds; repeat after that for server replay checks. Router acceptance is not authentication; smoke does not assert consume counts.
 - Install/launch package-consumer builds on both platforms and validate linkage/resources, not just source-project builds.
 
-**Unavailable automation:** `delayed-startup` and `refresh-recovery` are recognized names but deliberately exit 2 as **BLOCKED**. Full phone replay/consume-count checks, cold launch/process death, verified HTTPS handoff, browser fallback and refresh/recovery have no concrete MAUI drivers. C# orchestration declarations are not device coverage. Editable sample configuration does not survive process death; production cold URL/scene startup and customer associations/signing remain pending. Email-verification links are outside this release and unhandled by the iOS login router. iOS fatal initialization errors and uncompiled native/binding builds remain gates even if a warm smoke eventually passes.
+**Unavailable automation:** `delayed-startup` and `refresh-recovery` are recognized names but deliberately exit 2 as **BLOCKED**. Full phone replay/consume-count checks, cold launch/process death, verified HTTPS handoff, browser fallback and refresh/recovery have no concrete MAUI drivers. C# orchestration declarations are not device coverage. Editable sample configuration does not survive process death; production cold URL/scene startup and customer associations/signing remain pending. Email-verification links are outside this release and unhandled by the iOS login router. iOS fatal initialization errors, package-consumer linkage and runtime behavior remain gates even if a warm smoke eventually passes.

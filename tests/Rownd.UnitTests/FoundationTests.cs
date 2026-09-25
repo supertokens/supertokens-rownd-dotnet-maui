@@ -68,18 +68,27 @@ public sealed class FoundationTests
     }
 
     [Fact]
-    public async Task VerifiesHealthThenUnauthenticatedRejection()
+    public async Task VerifiesHealthUnauthenticatedRejectionAndRowndPlugin()
     {
         var paths = new List<string>();
         using var handler = new ResponseHandler(request =>
         {
             var path = request.RequestUri!.AbsolutePath;
             paths.Add(path);
-            return new(path == "/health" ? HttpStatusCode.OK : HttpStatusCode.Unauthorized);
+            return path switch
+            {
+                "/health" => new(HttpStatusCode.OK),
+                "/test/protected" => new(HttpStatusCode.Unauthorized),
+                "/auth/plugin/rownd/migrate" => new(HttpStatusCode.BadRequest)
+                {
+                    Content = new StringContent("{\"status\":\"ERROR\",\"message\":\"Missing authorization header\"}"),
+                },
+                _ => new(HttpStatusCode.NotFound),
+            };
         });
         using var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost:3001/") };
         await new HarnessClient(http).VerifyEnvironmentAsync();
-        Assert.Equal(new[] { "/health", "/test/protected" }, paths);
+        Assert.Equal(new[] { "/health", "/test/protected", "/auth/plugin/rownd/migrate" }, paths);
     }
 
     [Fact]
@@ -110,6 +119,19 @@ public sealed class FoundationTests
     public async Task RejectsUnprotectedOrBrokenFixture(HttpStatusCode status)
     {
         using var handler = new ResponseHandler(request => new(request.RequestUri!.AbsolutePath == "/health" ? HttpStatusCode.OK : status));
+        using var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost:3001/") };
+        await Assert.ThrowsAsync<InvalidOperationException>(() => new HarnessClient(http).VerifyEnvironmentAsync());
+    }
+
+    [Fact]
+    public async Task RejectsBackendWithoutRowndPlugin()
+    {
+        using var handler = new ResponseHandler(request => new(request.RequestUri!.AbsolutePath switch
+        {
+            "/health" => HttpStatusCode.OK,
+            "/test/protected" => HttpStatusCode.Unauthorized,
+            _ => HttpStatusCode.NotFound,
+        }));
         using var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost:3001/") };
         await Assert.ThrowsAsync<InvalidOperationException>(() => new HarnessClient(http).VerifyEnvironmentAsync());
     }

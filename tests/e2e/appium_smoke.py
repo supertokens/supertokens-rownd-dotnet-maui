@@ -9,25 +9,26 @@ import urllib.parse
 import urllib.request
 
 
-def request(url, data=None, method=None):
+def request(url, data=None, method=None, timeout=20):
     body = None if data is None else json.dumps(data).encode()
     with urllib.request.urlopen(urllib.request.Request(url, body,
-            {'Content-Type': 'application/json'}, method=method), timeout=20) as response:
+            {'Content-Type': 'application/json'}, method=method), timeout=timeout) as response:
         return json.load(response)
 
 
 class Appium:
-    def __init__(self, endpoint, session):
+    def __init__(self, endpoint, session, platform):
         self.base = endpoint.rstrip('/') + '/session/' + session
+        self.native_locator = 'id' if platform == 'android' else 'accessibility id'
 
     def call(self, path, data=None):
-        value = request(self.base + path, data)['value']
+        value = request(self.base + path, data, timeout=90)['value']
         if isinstance(value, dict) and 'error' in value:
             raise RuntimeError('WebDriver command failed')
         return value
 
     def find(self, value, web=False):
-        result = self.call('/element', {'using': 'css selector' if web else 'accessibility id', 'value': value})
+        result = self.call('/element', {'using': 'css selector' if web else self.native_locator, 'value': value})
         return result['element-6066-11e4-a52e-4f735466cecf']
 
     def click(self, value, web=False):
@@ -67,7 +68,7 @@ def wait(check):
 
 def run(platform, scenario):
     config = json.loads(open(os.environ['ROWND_E2E_CONFIG']).read())
-    driver = Appium(os.environ['ROWND_APPIUM_URL'], os.environ['ROWND_APPIUM_SESSION'])
+    driver = Appium(os.environ['ROWND_APPIUM_URL'], os.environ['ROWND_APPIUM_SESSION'], platform)
     driver.context('NATIVE_APP')
     for field in ['app-key', 'api-domain', 'api-path', 'hub-url', 'link-scheme', 'protected-url']:
         driver.fill(field, config[field])

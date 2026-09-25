@@ -14,6 +14,14 @@ public sealed class HarnessClient(HttpClient http)
         using var response = await http.GetAsync("test/protected", cancellationToken);
         if (response.StatusCode != HttpStatusCode.Unauthorized)
             throw new InvalidOperationException("Protected endpoint must reject unauthenticated requests with 401.");
+
+        using var plugin = await http.PostAsJsonAsync("auth/plugin/rownd/migrate", new { }, cancellationToken);
+        if (plugin.StatusCode != HttpStatusCode.BadRequest)
+            throw new InvalidOperationException("Rownd plugin migration endpoint must reject missing authorization.");
+        using var result = await plugin.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken);
+        if (result?.RootElement.TryGetProperty("message", out var message) != true ||
+            message.GetString() != "Missing authorization header")
+            throw new InvalidOperationException("Rownd plugin migration endpoint did not handle the request.");
     }
 
     public async Task<string?> ReadPhoneLinkAsync(string phone, CancellationToken cancellationToken = default)
