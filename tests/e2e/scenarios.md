@@ -1,10 +1,9 @@
-# Device scenarios — pending M2 bindings/driver
+# Device scenarios — runtime validation pending
 
-`scripts/test-passwordless.sh` validates scenario selection and exits **2 (blocked)**.
-It cannot produce a passing result until a native-backed sample and platform driver exist.
-`PasswordlessScenarios.cs` compiles email OTP, phone warm/cold/replay, delayed initialization and refresh/recovery orchestration. Its device-driver interfaces have no concrete mobile implementation. A Mac alone cannot execute this unfinished M2-dependent automation. Offline unit tests use recording/scripted doubles to validate the runner's decisions, not authentication.
+M2 adds an opt-in Appium driver for the **initial** email OTP and warm captured-phone-link smoke, backed by the real native sample. It has never been run. See [driver setup and exact limits](../../docs/m2-status.md). `scripts/test-passwordless.sh` requires `ROWND_RUN_E2E=1`; delayed-startup and refresh-recovery still exit **2 (blocked)**.
+`PasswordlessScenarios.cs` compiles the fuller email OTP, phone warm/cold/replay, delayed initialization and refresh/recovery orchestration below. Its richer device-driver interfaces still have no concrete mobile implementation. The initial Appium driver does not satisfy those complete contracts. Offline unit tests use recording/scripted doubles to validate the runner's decisions, not authentication.
 The sample's stable action IDs are `sign-in`, `auth-status`, `protected-api`, `sign-out`.
-No integration or device scenario was executed during M1.
+No integration or device scenario was executed during M1 or M2 implementation.
 
 ## smoke (Android and iOS)
 

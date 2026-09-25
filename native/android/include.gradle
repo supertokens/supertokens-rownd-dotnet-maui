@@ -1,0 +1,17 @@
+settingsEvaluated { settings ->
+    settings.include ':mauiFacade'
+    settings.project(':mauiFacade').projectDir = new File(System.getenv('ROWND_MAUI_ROOT'), 'native/android')
+}
+
+gradle.beforeProject { project ->
+    if (project.path == ':android') {
+        project.afterEvaluate {
+            def root = new File(System.getenv('ROWND_MAUI_ROOT'))
+            def overlay = new File(root, 'native/android/build/patched-native')
+            project.android.sourceSets.main.java.setSrcDirs([
+                overlay, new File(root, 'native/android/hooks')
+            ])
+            project.android.sourceSets.test.java.srcDir(new File(root, 'native/android/native-tests'))
+        }
+    }
+}

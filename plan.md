@@ -1,6 +1,6 @@
 # .NET MAUI SDK: focused passwordless implementation plan
 
-Date: 2026-09-25. Status: M1 foundation implemented; native bindings and runtime acceptance pending. See [M1 evidence and gates](docs/m1-status.md).
+Date: 2026-09-25. Status: M1 foundation implemented; M2 native bridge implementation in progress, runtime acceptance pending. See [M1 evidence and gates](docs/m1-status.md) and [M2 implementation/gates](docs/m2-status.md).
 
 **Approved M1 scope update (2026-09-25):** customer upgrades Rownd.Maui and targets stable .NET 10. Implement project/tooling and shared-fixture foundation plus unit/mock tests and integration/E2E scaffolding. Do not run integration/E2E/device tests in this phase; user runs on Mac. No Mac CI. Use captured Hub-created phone links, not real SMS delivery checks. Custom-subdomain association files await actual identifiers/signing. Public publishing and package reservation are postponed. Original later-stage acceptance below is retained as planning history; real SMS checks and publishing require a future explicit scope decision. M1's live-environment/device gates remain open, not passed by foundation tests.
 

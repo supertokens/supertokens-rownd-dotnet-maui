@@ -1,0 +1,20 @@
+diff --git a/io/rownd/android/util/SuperTokensSessionBridge.kt b/io/rownd/android/util/SuperTokensSessionBridge.kt
+--- a/io/rownd/android/util/SuperTokensSessionBridge.kt
++++ b/io/rownd/android/util/SuperTokensSessionBridge.kt
+@@ -66,6 +66,8 @@ object SuperTokensSessionBridge {
+         }
+ 
+     val isInitialized = AtomicBoolean(false)
++    @Volatile
++    internal var initializationFailure: Exception? = null
+     private var enableDebugMode = false
+ 
+     internal var buildSuperTokens: (Context, String, String, Boolean) -> Unit = { context, apiDomain, apiBasePath, enableDebugMode ->
+@@ -97,6 +99,7 @@ object SuperTokensSessionBridge {
+             buildSuperTokens(context, apiDomain, apiBasePath, enableDebugMode)
+             Log.d(TAG, "SuperTokens initialized with apiDomain=$apiDomain")
+         } catch (e: Exception) {
++            initializationFailure = e
+             isInitialized.set(false)
+             Log.e(TAG, "SuperTokens initialization failed: ${e.message}")
+         }

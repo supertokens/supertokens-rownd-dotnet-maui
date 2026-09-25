@@ -1,0 +1,43 @@
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
+}
+android {
+    namespace 'io.supertokens.rownd.maui'
+    compileSdk 36
+    defaultConfig {
+        minSdk 26
+        consumerProguardFiles 'consumer-rules.pro'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = '17' }
+}
+dependencies {
+    implementation project(':android')
+    implementation 'androidx.fragment:fragment-ktx:1.8.6'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1'
+}
+tasks.register('exportRuntime') {
+    dependsOn 'assembleRelease', ':android:assembleRelease'
+    doLast {
+        def artifacts = configurations.releaseRuntimeClasspath.incoming.artifactView {
+            componentFilter { it instanceof org.gradle.api.artifacts.component.ModuleComponentIdentifier }
+        }.artifacts.artifacts
+        def inventory = artifacts.collect { artifact ->
+            def id = artifact.id.componentIdentifier
+            [group: id.group, name: id.module, version: id.version, file: artifact.file.name]
+        }.unique()
+        if (inventory.groupBy { it.file }.any { name, entries -> entries.size() > 1 }) {
+            throw new GradleException('Runtime artifact filenames collide; assign coordinate-qualified names before packaging')
+        }
+        layout.buildDirectory.file('runtime.json').get().asFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(inventory))
+        copy {
+            from artifacts.collect { it.file }.unique()
+            from project(':android').layout.buildDirectory.file('outputs/aar/android-release.aar')
+            into layout.buildDirectory.dir('runtime')
+        }
+    }
+}

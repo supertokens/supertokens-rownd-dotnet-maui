@@ -1,0 +1,33 @@
+name: RowndMauiBridge
+options:
+  deploymentTarget:
+    iOS: "15.0"
+packages:
+  Rownd:
+    path: ../../../supertokens-rownd-ios
+targets:
+  RowndMauiBridge:
+    type: framework
+    platform: iOS
+    sources: [Sources]
+    dependencies:
+      - package: Rownd
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.supertokens.rownd.maui.bridge
+        SWIFT_VERSION: "5.0"
+        DEFINES_MODULE: YES
+        BUILD_LIBRARY_FOR_DISTRIBUTION: YES
+        SKIP_INSTALL: NO
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_INSTALL_OBJC_HEADER: YES
+        OTHER_LDFLAGS: ["$(inherited)", "-ObjC"]
+  RowndMauiBridgeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: RowndMauiBridge
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES

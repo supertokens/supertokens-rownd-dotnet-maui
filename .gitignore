@@ -1,4 +1,8 @@
 # globs
+native/android/build/
+native/ios/build/
+native/ios/RowndMauiBridge.xcodeproj/
+artifacts/
 Makefile.in
 *.userprefs
 *.usertasks

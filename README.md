@@ -1,45 +1,64 @@
-﻿# SuperTokens Rownd MAUI — M1 foundation
+# SuperTokens Rownd MAUI — native bridge preview
 
-Target: .NET 10 Android/iOS, upgrading customers from `Rownd.Maui`.
-**Native bindings and live authentication are pending M2.** No installable replacement NuGet is claimed.
-Proposed identity `SuperTokens.Rownd.Maui` is not reserved or published.
+.NET 10 Android/iOS authentication replacement for customers upgrading `Rownd.Maui`.
+**M2 runtime acceptance is pending. iOS implementation is uncompiled.** See [implementation, checks and blockers](docs/m2-status.md).
 
-## Build and unit checks
+Native Rownd owns Hub UI, token persistence, expiry and refresh. The C# facade does not initialize legacy authentication, import old `rownd_state`, or intercept HTTP requests. Existing customers must sign in once after replacing the old package.
 
-Use SDK **10.0.401**, workload set **10.0.401**, MAUI **10.0.20** and JDK **21.0.12**.
-`eng/versions.json` pins the reviewed native Android 0.1.14, iOS 0.2.4 and Hub sources.
+## Build and local package
+
+Pinned SDK/workload set: **10.0.401**, MAUI **10.0.20**, JDK **21.0.12**. Source pins and open Xcode/Core-image requirements are in `eng/versions.json`. Builders need the pinned sibling repositories; package consumers do not.
 
 ```sh
-# This Linux development environment only:
-source /home/dev/.config/rownd-android-tooling/env.sh
+source /home/dev/.config/rownd-android-tooling/env.sh # this Linux environment
 python3 scripts/check-native-sources.py
-./scripts/test-unit.sh
-dotnet build tests/Rownd.IntegrationTests/Rownd.IntegrationTests.csproj -c Release
-# Install workload once if needed; does not run devices:
-dotnet workload install maui-android --version 10.0.401
-ROWND_APPLICATION_ID=your.actual.application.id ./scripts/build-sample.sh android
+bash scripts/build-native-android.sh
+./scripts/test-unit.sh --nologo -v quiet
+ROWND_APPLICATION_ID=io.supertokens.maui.buildcheck ./scripts/build-sample.sh android
+bash scripts/pack.sh android
+python3 scripts/check-android-package.py
+ROWND_APPLICATION_ID=io.supertokens.maui.buildcheck bash scripts/verify-package.sh android
 ```
 
-On the customer's Mac, install the matching `maui-ios` workload set and Xcode required by iOS workload **26.5.10318**. Confirm exact Xcode compatibility before building; it has not been verified here. Build with `./scripts/build-sample.sh ios` and an explicit `ROWND_APPLICATION_ID`. No Mac CI is configured.
+These commands build/pack without installing or launching a device. `io.supertokens.maui.buildcheck` is a build-only identifier, not the customer's identity. Local NuGet identity `SuperTokens.Rownd.Maui` version `0.0.1-m2` is provisional, unreserved and unpublished. Android and iOS packs use separate feeds under `artifacts/packages/<platform>`; a combined customer artifact awaits Mac validation.
 
-`samples/Passwordless` validates configuration and shows disabled sign-in, protected API and sign-out actions with an unavailable-auth label. It references only `src/Rownd.Foundation`; it never initializes legacy C# auth or fabricates a session. App IDs, schemes and HTTPS associations await customer identifiers; none are registered by this foundation.
+On Mac with the matching .NET iOS workload, Xcode and XcodeGen: run `bash scripts/build-native-ios.sh`, `bash scripts/pack.sh ios`, then package-consumer verification with actual signing/identity settings. This path is written but has not been compiled or executed here.
 
-## Shared fixture and deferred checks
+## Minimal API
 
-See [M1 status and fixture setup](docs/m1-status.md), [device scenarios](tests/e2e/scenarios.md) and [full plan](plan.md).
-Integration checks require explicit opt-in; they were **not run**:
+Reference `SuperTokens.Rownd.Maui` from the local platform feed plus nuget.org. Configure once after the host activity/window exists:
 
-```sh
-ROWND_RUN_INTEGRATION=1 ROWND_HARNESS_URL=http://localhost:3137 ./scripts/test-integration.sh environment
-# First create a fresh phone challenge in the real Hub using a unique controlled number.
-ROWND_RUN_INTEGRATION=1 ROWND_HARNESS_URL=http://localhost:3137 ROWND_TEST_PHONE=... ./scripts/test-integration.sh phone-capture
-./scripts/test-passwordless.sh --platform android --scenario phone-magic-link
+```csharp
+using SuperTokens.Rownd.Foundation;
+using NativeRownd = SuperTokens.Rownd.Maui.Rownd;
+
+var rownd = NativeRownd.Current;
+rownd.StateChanged += (_, state) => UpdateAuthLabel(state.IsAuthenticated);
+await rownd.ConfigureAsync(new RowndConfiguration(
+    appKey, apiDomain, "/auth", hubUrl, "your-registeredscheme"));
+rownd.RequestSignIn(); // Completion is observed through native-backed state.
+
+var token = await rownd.GetAccessTokenAsync(); // null = no session; failures fault.
+if (token is not null)
+{
+    using var request = new HttpRequestMessage(HttpMethod.Get, trustedProtectedUrl);
+    request.Headers.Authorization = new("Bearer", token);
+    using var response = await httpClient.SendAsync(request);
+    response.EnsureSuccessStatusCode();
+}
+rownd.SignOut(); // Local completion is observed through state; remote revocation is async.
 ```
 
-The E2E entrypoint exits 2 (blocked) until M2 bindings/device drivers exist. **A Mac alone cannot execute the unfinished device automation.** Compiled scenario orchestration in `tests/Rownd.IntegrationTests/PasswordlessScenarios.cs` covers OTP, phone replay, delayed startup and refresh/recovery through explicit driver contracts. No concrete mobile driver or passing fallback exists. Recording/scripted doubles are confined to offline unit tests of orchestration. Captures verify callback shape, not native authentication. No real SMS delivery checks are in the approved scope.
+Retrieve a current token per protected operation. No automatic 401 retry or global authorization header is provided. Unsubscribe UI handlers when leaving the screen; disposing the process singleton is terminal and stops observations/pending managed operations, not a native sign-out.
 
-## Customer upgrade
+## Sample and links
 
-The eventual replacement requires **one fresh sign-in**. Old `rownd_state` credentials will not be imported. Native SDKs will own token storage and refresh. Customers will use ordinary `HttpClient` with a newly retrieved token attached per request; no automatic interception or 401 replay is promised.
+See [Testing on a Mac](docs/testing.md) for pinned tools, offline tests, native/package builds, shared fixture setup, and opt-in existing-session Appium instructions. Runtime and iOS validation remain pending.
 
-`Rownd/`, `examples/` and `Rownd.sln` remain historical legacy sources, outside the new build path. Their old framework targets do not describe this foundation. Inherited release configuration/notification are archived as `.disabled` files in `docs/`; `npm run release` fails explicitly. Publishing remains postponed.
+`samples/Passwordless` has real native actions and an ordinary bearer request. Enter fixture configuration, then Configure. The development scheme **`rowndmauisample`** is registered on both platforms; the Hub must use that same scheme. Customer apps must substitute their registration. Native Android owns ComponentActivity intent forwarding: do not duplicate `OnNewIntent` delivery. iOS `AppDelegate` forwards warm URL/user-activity callbacks through `RowndLinks` to native smart-link handling. Production cold-launch/scene configuration, HTTPS associations and physical routing remain pending.
+
+iOS forwarding is **login-only**: the configured scheme's `://account/login` and the configured Hub host's HTTPS `/account/login`. Email-verification links are outside this release and remain unhandled. `RowndLinks.Configure(config)` must precede callbacks. Exact encoded URLs are deduplicated while queued/in flight (eight distinct outstanding links maximum) and for two seconds after a successful native handoff (32 recent entries maximum, oldest evicted). Suppressed duplicates return `true`; duplicates do not extend that window. Failed native handoffs can retry immediately; replay testing can retry after two seconds. Disposal clears the router and is terminal. This is callback coalescing, not proof of authentication or server-side replay protection.
+
+See [M1 shared fixture](docs/m1-status.md) and [M2 E2E driver prerequisites](docs/m2-status.md). Appium email OTP/warm captured-phone-link drivers are implemented but **not run**. They require explicit opt-in and a real native WebView automation setup. Full replay/cold-start/refresh drivers and runtime results remain open; no real SMS delivery is needed.
+
+Historical `Rownd/`, `examples/` and `Rownd.sln` are excluded from the new execution/build path. Publishing stays disabled. Nothing has been committed, pushed or published for M2.

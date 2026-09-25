@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RowndTargetFrameworks Condition="'$(RowndTargetFrameworks)' == ''">net10.0-android;net10.0-ios</RowndTargetFrameworks>
+    <TargetFrameworks>$(RowndTargetFrameworks)</TargetFrameworks>
+    <UseMaui>true</UseMaui>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <MauiVersion>10.0.20</MauiVersion>
+    <PackageId>SuperTokens.Rownd.Maui</PackageId>
+    <Version>0.0.1-m2</Version>
+    <SupportedOSPlatformVersion Condition="$(TargetFramework.Contains('-android'))">26</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$(TargetFramework.Contains('-ios'))">15</SupportedOSPlatformVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Rownd.Foundation/Rownd.Foundation.csproj" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+    <ProjectReference Include="../../bindings/Rownd.Android/Rownd.Android.csproj" Condition="$(TargetFramework.Contains('-android'))" />
+    <ProjectReference Include="../../bindings/Rownd.iOS/Rownd.iOS.csproj" Condition="$(TargetFramework.Contains('-ios'))" />
+  </ItemGroup>
+</Project>

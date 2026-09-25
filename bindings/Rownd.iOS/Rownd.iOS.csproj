@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-ios</TargetFramework>
+    <SupportedOSPlatformVersion>15</SupportedOSPlatformVersion>
+    <IsBindingProject>true</IsBindingProject>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PackageId>SuperTokens.Rownd.Native.iOS</PackageId>
+    <Version>0.0.1-m2</Version>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Remove="StyleCop.Analyzers" />
+    <Compile Remove="ApiDefinition.cs" />
+    <ObjcBindingApiDefinition Include="ApiDefinition.cs" />
+    <NativeReference Include="../../native/ios/build/RowndMauiBridge.xcframework">
+      <Kind>Framework</Kind>
+      <SmartLink>true</SmartLink>
+      <ForceLoad>true</ForceLoad>
+    </NativeReference>
+  </ItemGroup>
+  <Target Name="RequireNativeFacade" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('../../native/ios/build/RowndMauiBridge.xcframework')" Text="Run scripts/build-native-ios.sh on a Mac first." />
+  </Target>
+</Project>
