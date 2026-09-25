@@ -7,7 +7,7 @@ Native Rownd owns Hub UI, token persistence, expiry and refresh. The C# facade d
 
 ## Build and local package
 
-Pinned SDK/workload set: **10.0.401**, MAUI **10.0.20**, JDK **21.0.12**. Source pins and open Xcode/Core-image requirements are in `eng/versions.json`. Builders need the pinned sibling repositories; package consumers do not.
+Pinned SDK/workload set: **10.0.200**, MAUI **10.0.20**, JDK **21.0.12**, Xcode **26.2**. Source pins and open Core-image requirements are in `eng/versions.json`. Builders need the pinned sibling repositories; package consumers do not.
 
 ```sh
 source /home/dev/.config/rownd-android-tooling/env.sh # this Linux environment
