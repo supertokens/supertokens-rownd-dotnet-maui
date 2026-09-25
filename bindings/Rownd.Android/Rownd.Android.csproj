@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>SuperTokens.Rownd.Native.Android</PackageId>
-    <Version>0.0.1-m2</Version>
+    <Version>0.0.1-m3</Version>
     <Description>Provisional local native Rownd facade binding.</Description>
   </PropertyGroup>
   <ItemGroup>
@@ -17,6 +17,12 @@
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
   </ItemGroup>
   <Import Project="../../native/android/build/runtime-libraries.props" Condition="Exists('../../native/android/build/runtime-libraries.props')" />
+  <!-- Imported AARs ship intact. Do not also copy their JNI libraries into Rownd.Android.aar. -->
+  <Target Name="DeduplicateImportedNativeLibraries" BeforeTargets="_CreateAarCache">
+    <ItemGroup>
+      <EmbeddedNativeLibrary Remove="@(ExtractedNativeLibraryImports)" />
+    </ItemGroup>
+  </Target>
   <Target Name="RequireNativeFacade" BeforeTargets="PrepareForBuild">
     <Error Condition="!Exists('../../native/android/build/outputs/aar/mauiFacade-release.aar')" Text="Run scripts/build-native-android.sh before building bindings." />
     <Error Condition="!Exists('../../native/android/build/runtime-libraries.props')" Text="Run scripts/build-native-android.sh to resolve runtime packaging." />

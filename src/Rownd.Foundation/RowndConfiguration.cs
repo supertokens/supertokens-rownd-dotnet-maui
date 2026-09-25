@@ -1,6 +1,5 @@
 namespace SuperTokens.Rownd.Foundation;
 
-// Configuration only: native initialization is introduced in M2.
 public sealed class RowndConfiguration
 {
     public RowndConfiguration(string appKey, string apiDomain, string apiBasePath, string hubUrl, string appLinkScheme)

@@ -75,6 +75,7 @@ public sealed class PasswordlessPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        rownd.StateChanged -= StateChanged;
         rownd.StateChanged += StateChanged;
         UpdateState(rownd.State);
     }

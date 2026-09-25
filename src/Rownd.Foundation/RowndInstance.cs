@@ -65,22 +65,31 @@ public sealed class RowndInstance : IDisposable
     private Task<T> InvokeAsync<T>(Action<Action<T, string?>> invoke)
     {
         var completion = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
-        dispatch(() =>
+        try
         {
-            if (disposed) return;
-            try
+            dispatch(() =>
             {
-                invoke((value, error) =>
+                if (disposed) return;
+                try
                 {
-                    if (error is null) completion.TrySetResult(value);
-                    else completion.TrySetException(new InvalidOperationException($"Native Rownd operation failed: {error}"));
-                });
-            }
-            catch (Exception error)
-            {
-                completion.TrySetException(error);
-            }
-        });
+                    invoke((value, error) =>
+                    {
+                        if (disposed) return;
+                        if (error is null) completion.TrySetResult(value);
+                        else completion.TrySetException(new InvalidOperationException($"Native Rownd operation failed: {error}"));
+                    });
+                }
+                catch (Exception error)
+                {
+                    completion.TrySetException(error);
+                }
+            });
+        }
+        catch (Exception error)
+        {
+            completion.TrySetException(error);
+        }
+
         return completion.Task.WaitAsync(lifetime.Token);
     }
 
@@ -98,6 +107,7 @@ public sealed class RowndInstance : IDisposable
             if (disposed) return;
             disposed = true;
             bridge.StateChanged -= OnStateChanged;
+            StateChanged = null;
             lifetime.Cancel();
         }
 

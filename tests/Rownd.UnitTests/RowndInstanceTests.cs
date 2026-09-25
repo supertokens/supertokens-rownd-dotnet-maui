@@ -76,6 +76,83 @@ public sealed class RowndInstanceTests
         Assert.False(instance.State.IsAuthenticated);
     }
 
+    [Fact]
+    public async Task FirstCallbackWinsAndErrorsDoNotBecomeTokens()
+    {
+        var bridge = new Bridge { DelayToken = true };
+        using var instance = new RowndInstance(bridge, action => action());
+        await instance.ConfigureAsync(Config);
+        var token = instance.GetAccessTokenAsync();
+        bridge.TokenCompletion!("must-not-leak", "network");
+        bridge.TokenCompletion!("late-token", null);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => token);
+        var retry = instance.GetAccessTokenAsync();
+        bridge.TokenCompletion!("current-token", null);
+        Assert.Equal("current-token", await retry);
+    }
+
+    [Fact]
+    public async Task DisposalBeforeDispatchCancelsConfigurationWithoutCallingNative()
+    {
+        var queue = new Queue<Action>();
+        var bridge = new Bridge();
+        var instance = new RowndInstance(bridge, queue.Enqueue);
+        var configure = instance.ConfigureAsync(Config);
+        instance.Dispose();
+        instance.Dispose();
+        while (queue.TryDequeue(out var action)) action();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => configure);
+        Assert.Equal(0, bridge.Configurations);
+        Assert.Equal(1, bridge.Disposals);
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => instance.GetAccessTokenAsync());
+    }
+
+    [Fact]
+    public async Task LateCompletionAfterDisposalCannotReviveOperation()
+    {
+        var bridge = new Bridge { DelayToken = true };
+        var instance = new RowndInstance(bridge, action => action());
+        await instance.ConfigureAsync(Config);
+        var token = instance.GetAccessTokenAsync();
+        instance.Dispose();
+        bridge.TokenCompletion!("late-token", null);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => token);
+    }
+
+    [Fact]
+    public async Task DispatchFailureFaultsConfigurationAndStillPreventsRetry()
+    {
+        var reject = true;
+        using var instance = new RowndInstance(new Bridge(), action =>
+        {
+            if (reject) throw new InvalidOperationException("dispatcher unavailable");
+            action();
+        });
+        var configure = instance.ConfigureAsync(Config);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => configure);
+        reject = false;
+        await Assert.ThrowsAsync<InvalidOperationException>(() => instance.ConfigureAsync(Config));
+    }
+
+    [Fact]
+    public async Task UnsubscribedUiDoesNotReceiveQueuedNotification()
+    {
+        var queue = new Queue<Action>();
+        var bridge = new Bridge();
+        using var instance = new RowndInstance(bridge, queue.Enqueue);
+        var configure = instance.ConfigureAsync(Config);
+        queue.Dequeue()();
+        await configure;
+        var notifications = 0;
+        EventHandler<RowndState> handler = (_, _) => notifications++;
+        instance.StateChanged += handler;
+        bridge.Emit(new(true, true, "user"));
+        instance.StateChanged -= handler;
+        queue.Dequeue()();
+        Assert.Equal(0, notifications);
+        Assert.Equal("user", instance.State.UserId);
+    }
+
     private sealed class Bridge : INativeBridge
     {
         public string? ConfigurationError { get; init; }
@@ -83,12 +160,29 @@ public sealed class RowndInstanceTests
         public bool DelayToken { get; init; }
         public int SignIns { get; private set; }
         public bool Disposed { get; private set; }
+        public int Configurations { get; private set; }
+        public int Disposals { get; private set; }
+        public Action<string?, string?>? TokenCompletion { get; private set; }
         public event Action<RowndState>? StateChanged;
         public void Emit(RowndState state) => StateChanged?.Invoke(state);
-        public void Configure(RowndConfiguration config, Action<string?> completion) => completion(ConfigurationError);
+        public void Configure(RowndConfiguration config, Action<string?> completion)
+        {
+            Configurations++;
+            completion(ConfigurationError);
+        }
+
         public void RequestSignIn() => SignIns++;
-        public void GetAccessToken(Action<string?, string?> completion) { if (!DelayToken) completion(null, TokenError); }
+        public void GetAccessToken(Action<string?, string?> completion)
+        {
+            TokenCompletion = completion;
+            if (!DelayToken) completion(null, TokenError);
+        }
+
         public void SignOut() { }
-        public void Dispose() => Disposed = true;
+        public void Dispose()
+        {
+            Disposals++;
+            Disposed = true;
+        }
     }
 }

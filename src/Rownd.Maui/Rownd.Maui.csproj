@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <MauiVersion>10.0.20</MauiVersion>
     <PackageId>SuperTokens.Rownd.Maui</PackageId>
-    <Version>0.0.1-m2</Version>
+    <Version>0.0.1-m3</Version>
     <SupportedOSPlatformVersion Condition="$(TargetFramework.Contains('-android'))">26</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$(TargetFramework.Contains('-ios'))">15</SupportedOSPlatformVersion>
   </PropertyGroup>
@@ -17,4 +17,10 @@
     <ProjectReference Include="../../bindings/Rownd.Android/Rownd.Android.csproj" Condition="$(TargetFramework.Contains('-android'))" />
     <ProjectReference Include="../../bindings/Rownd.iOS/Rownd.iOS.csproj" Condition="$(TargetFramework.Contains('-ios'))" />
   </ItemGroup>
+  <!-- The native binding ships intact dependency AARs; do not re-embed their JNI libraries. -->
+  <Target Name="DeduplicateImportedNativeLibraries" BeforeTargets="_CreateAarCache" Condition="$(TargetFramework.Contains('-android'))">
+    <ItemGroup>
+      <EmbeddedNativeLibrary Remove="@(ExtractedNativeLibraryImports)" />
+    </ItemGroup>
+  </Target>
 </Project>

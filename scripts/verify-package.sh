@@ -11,7 +11,7 @@ cp "$root/global.json" "$consumer/"
 # prevents a previous local prerelease with the same version satisfying this check.
 dotnet restore "$consumer/Passwordless.csproj" -p:RowndUsePackage=true \
   -p:RowndTargetFrameworks="net10.0-$platform" -p:RowndApplicationId="${ROWND_APPLICATION_ID:?Set a build application ID}" \
-  --packages "$consumer/packages" --source "$root/artifacts/packages/$platform" --source https://api.nuget.org/v3/index.json "${@:2}"
+  --packages "$consumer/packages" --source "${ROWND_PACKAGE_SOURCE:-$root/artifacts/packages/$platform}" --source https://api.nuget.org/v3/index.json "${@:2}"
 dotnet build "$consumer/Passwordless.csproj" -c Release --no-restore \
   -p:RowndUsePackage=true -p:RowndTargetFrameworks="net10.0-$platform" \
   -p:RowndApplicationId="$ROWND_APPLICATION_ID" -p:RestorePackagesPath="$consumer/packages" "${@:2}"

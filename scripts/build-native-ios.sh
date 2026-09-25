@@ -21,3 +21,4 @@ xcodebuild -create-xcframework \
   -framework build/iphoneos.xcarchive/Products/Library/Frameworks/RowndMauiBridge.framework \
   -framework build/iphonesimulator.xcarchive/Products/Library/Frameworks/RowndMauiBridge.framework \
   -output build/RowndMauiBridge.xcframework
+python3 "$root/scripts/check-ios-framework.py"

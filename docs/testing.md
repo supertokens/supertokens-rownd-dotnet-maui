@@ -1,5 +1,7 @@
 # Testing on a Mac
 
+For current package-only Release validation, offline checker tests and physical-device evidence, follow the [M3 validation runbook](testing-m3.md).
+
 **M2 runtime acceptance remains open.** Android Debug and Release email OTP have limited emulator evidence; other runtime gates remain.
 
 ### iOS Debug runtime verification — 2026-09-25
@@ -36,6 +38,7 @@ The fix and regression tests now live in `supertokens-rownd-ios`; the .NET build
 
 ```sh
 dotnet clean samples/Passwordless/Passwordless.csproj -c Debug \
+  -p:RowndUsePackage=false \
   -p:RowndTargetFrameworks=net10.0-ios \
   -p:RowndApplicationId="$ROWND_APPLICATION_ID" -p:RuntimeIdentifier=iossimulator-arm64
 ```
@@ -125,7 +128,7 @@ bash scripts/verify-package.sh android
 
 The buildcheck ID is for evaluation, not customer identity. `build-sample.sh` accepts only `android|ios` and does not forward extra MSBuild flags. `verify-package.sh` forwards arguments after the platform to restore/build. It copies the sample outside the checkout, disables source project references, restores into an isolated cache and builds Release. On Mac it uses `$TMPDIR`; if unset, set it to an existing writable temporary directory (fallback `/tmp/opencode` is environment-specific). These scripts do not install or launch anything.
 
-Local packages are provisional `0.0.1-m2`: `SuperTokens.Rownd.Maui`, `SuperTokens.Rownd.Foundation`, and the platform binding. Feeds: `artifacts/packages/android` or `artifacts/packages/ios`, plus `https://api.nuget.org/v3/index.json`. No validated combined customer package exists; publishing stays disabled. Repeat dependency/Dex checks if changing consumer AndroidX versions. Existing Android consumer builds report byte-identical duplicate native-library warnings; details are in M2 status.
+Current packages target provisional `0.0.1-m3`: `SuperTokens.Rownd.Maui`, `SuperTokens.Rownd.Foundation`, and the platform binding. Feeds: `artifacts/packages/android` or `artifacts/packages/ios`, plus `https://api.nuget.org/v3/index.json`. `bash scripts/pack.sh all` on Mac builds the combined feed under `artifacts/packages/all`; use `ROWND_PACKAGE_SOURCE` with `verify-package.sh` to test that feed on both platforms. The sample now defaults to package references; source development explicitly uses `-p:RowndUsePackage=false` (set by `build-sample.sh`). No validated M3 combined customer package exists; publishing stays disabled. Repeat dependency/Dex checks if changing consumer AndroidX versions. M3 removes imported JNI copies from the binding-generated AAR; rebuilding and checking the package must confirm elimination of M2's duplicate native-library warnings. See [M3 status](m3-status.md) for current verification blockers.
 
 ### iOS build gate
 

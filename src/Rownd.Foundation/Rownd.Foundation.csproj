@@ -4,6 +4,6 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>SuperTokens.Rownd.Foundation</PackageId>
-    <Version>0.0.1-m2</Version>
+    <Version>0.0.1-m3</Version>
   </PropertyGroup>
 </Project>

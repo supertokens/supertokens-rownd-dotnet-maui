@@ -1,7 +1,7 @@
 # SuperTokens Rownd MAUI — native bridge preview
 
 .NET 10 Android/iOS authentication replacement for customers upgrading `Rownd.Maui`.
-**M2 runtime acceptance is pending. iOS implementation is uncompiled.** See [implementation, checks and blockers](docs/m2-status.md).
+**M3 implementation is in progress; release acceptance remains open.** See [M3 checks and blockers](docs/m3-status.md) and [user-recorded Mac/runtime results](docs/testing.md).
 
 Native Rownd owns Hub UI, token persistence, expiry and refresh. The C# facade does not initialize legacy authentication, import old `rownd_state`, or intercept HTTP requests. Existing customers must sign in once after replacing the old package.
 
@@ -20,9 +20,31 @@ python3 scripts/check-android-package.py
 ROWND_APPLICATION_ID=io.supertokens.maui.buildcheck bash scripts/verify-package.sh android
 ```
 
-These commands build/pack without installing or launching a device. `io.supertokens.maui.buildcheck` is a build-only identifier, not the customer's identity. Local NuGet identity `SuperTokens.Rownd.Maui` version `0.0.1-m2` is provisional, unreserved and unpublished. Android and iOS packs use separate feeds under `artifacts/packages/<platform>`; a combined customer artifact awaits Mac validation.
+These commands build/pack without installing or launching a device. `io.supertokens.maui.buildcheck` is a build-only identifier, not the customer's identity. Local NuGet identity `SuperTokens.Rownd.Maui` version `0.0.1-m3` is provisional, unreserved and unpublished. Platform-only development packs use separate feeds under `artifacts/packages/<platform>`.
 
-On Mac with the matching .NET iOS workload, Xcode and XcodeGen: run `bash scripts/build-native-ios.sh`, `bash scripts/pack.sh ios`, then package-consumer verification with actual signing/identity settings. This path is written but has not been compiled or executed here.
+On Mac with the matching workloads, Xcode and XcodeGen, build both native frameworks then run `bash scripts/pack.sh all`. This creates one public multi-target package and its transitive foundation/platform packages in `artifacts/packages/all`. The script checks conditional native dependency groups. Current M3 combined packaging still needs Mac verification; earlier M2 iOS builds and simulator results are recorded in the testing guide.
+
+## Package installation
+
+After producing the combined feed, add its absolute path and nuget.org as NuGet sources. Install only:
+
+```xml
+<PackageReference Include="SuperTokens.Rownd.Maui" Version="0.0.1-m3" />
+```
+
+NuGet selects the Android or iOS native dependency for the application's target framework. Distribute all four packages together; consumers need no sibling checkout or manually copied native binary. Target .NET 10 Android API 26+ or iOS 15+, with MAUI 10.0.20.
+
+`samples/Passwordless` uses the package by default. Restore it with the local feed plus nuget.org and your `RowndApplicationId`. `scripts/build-sample.sh` explicitly opts into source references for SDK development. To verify the combined feed in isolated Release consumers:
+
+```sh
+ROWND_PACKAGE_SOURCE="$PWD/artifacts/packages/all" \
+  ROWND_APPLICATION_ID=io.supertokens.maui.buildcheck bash scripts/verify-package.sh android
+ROWND_PACKAGE_SOURCE="$PWD/artifacts/packages/all" \
+  ROWND_APPLICATION_ID=io.supertokens.maui.buildcheck bash scripts/verify-package.sh ios \
+  -p:RuntimeIdentifier=iossimulator-arm64
+```
+
+These checks build only. Signed physical-device Release installation and authentication remain separate acceptance gates.
 
 ## Minimal API
 
@@ -49,16 +71,16 @@ if (token is not null)
 rownd.SignOut(); // Local completion is observed through state; remote revocation is async.
 ```
 
-Retrieve a current token per protected operation. No automatic 401 retry or global authorization header is provided. Unsubscribe UI handlers when leaving the screen; disposing the process singleton is terminal and stops observations/pending managed operations, not a native sign-out.
+Retrieve a current token per protected operation. No automatic 401 retry or global authorization header is provided. Configure exactly once per process, including after failure; repeated calls throw. Await readiness before other operations. Native callbacks map to Tasks with asynchronous continuations; null token means no session, native errors fault the Task without inventing a signed-out state. State is a native snapshot; changed snapshots are delivered on the MAUI UI thread. Unsubscribe UI handlers when leaving the screen; disposing the process singleton is terminal and cancels pending managed operations, not a native sign-out. iOS native fatal initialization failures cannot currently be translated to failed Tasks.
 
 ## Sample and links
 
-See [Testing on a Mac](docs/testing.md) for pinned tools, offline tests, native/package builds, shared fixture setup, and opt-in existing-session Appium instructions. Runtime and iOS validation remain pending.
+See the [M3 validation runbook](docs/testing-m3.md) for package-only Release checks and physical-device acceptance. [Testing on a Mac](docs/testing.md) covers pinned tools, shared fixture setup, user-recorded simulator results and runtime driver prerequisites.
 
 `samples/Passwordless` has real native actions and an ordinary bearer request. Enter fixture configuration, then Configure. The development scheme **`rowndmauisample`** is registered on both platforms; the Hub must use that same scheme. Customer apps must substitute their registration. Native Android owns ComponentActivity intent forwarding: do not duplicate `OnNewIntent` delivery. iOS `AppDelegate` forwards warm URL/user-activity callbacks through `RowndLinks` to native smart-link handling. Production cold-launch/scene configuration, HTTPS associations and physical routing remain pending.
 
 iOS forwarding is **login-only**: the configured scheme's `://account/login` and the configured Hub host's HTTPS `/account/login`. Email-verification links are outside this release and remain unhandled. `RowndLinks.Configure(config)` must precede callbacks. Exact encoded URLs are deduplicated while queued/in flight (eight distinct outstanding links maximum) and for two seconds after a successful native handoff (32 recent entries maximum, oldest evicted). Suppressed duplicates return `true`; duplicates do not extend that window. Failed native handoffs can retry immediately; replay testing can retry after two seconds. Disposal clears the router and is terminal. This is callback coalescing, not proof of authentication or server-side replay protection.
 
-See [M1 shared fixture](docs/m1-status.md) and [M2 E2E driver prerequisites](docs/m2-status.md). Appium email OTP/warm captured-phone-link drivers are implemented but **not run**. They require explicit opt-in and a real native WebView automation setup. Full replay/cold-start/refresh drivers and runtime results remain open; no real SMS delivery is needed.
+See [M1 shared fixture](docs/m1-status.md) and [M2 E2E driver prerequisites](docs/m2-status.md). Full Appium automation remains unproven; recorded Android checks used Appium native controls plus direct WebView inspection, and iOS checks used computer interaction. Full replay/cold-start/refresh drivers remain open; no real SMS delivery is needed.
 
-Historical `Rownd/`, `examples/` and `Rownd.sln` are excluded from the new execution/build path. Publishing stays disabled. Nothing has been committed, pushed or published for M2.
+Historical `Rownd/`, `examples/` and `Rownd.sln` are excluded from the new execution/build path. Publishing stays disabled.
