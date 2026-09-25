@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "release": "release-it"
+    "release": "node -e \"console.error('Publishing postponed: bindings and release gates pending.'); process.exit(2)\""
   },
   "devDependencies": {
     "@commitlint/cli": "^19.6.1",

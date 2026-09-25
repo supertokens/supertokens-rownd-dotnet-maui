@@ -1,0 +1,23 @@
+{
+  "dotnetSdk": "10.0.401",
+  "workloadSet": "10.0.401",
+  "maui": "10.0.20",
+  "androidWorkload": "36.1.69",
+  "jdk": "21.0.12",
+  "androidCompileSdk": 36,
+  "iosWorkload": "26.5.10318",
+  "xcode": "Pending matching release verification on customer Mac; iOS not built",
+  "nativeSources": {
+    "android": { "directory": "supertokens-rownd-android", "commit": "cd08c866828232d130f32df3c1c47ee7fabe1a2c", "version": "0.1.14" },
+    "ios": { "directory": "supertokens-rownd-ios", "commit": "0c89cac4fc541e72d1c366c1b0a5cdac77d83ea6", "version": "0.2.4" },
+    "hub": { "directory": "supertokens-rownd-hub", "commit": "086014e0f29c00722b260e69a9f28ff47512bf0f" }
+  },
+  "fixture": {
+    "source": "android/test-server/server.ts",
+    "nodeDependencies": "Android package-lock.json at the pinned commit",
+    "rowndPlugin": "0.3.0-beta.2",
+    "contactMethod": "EMAIL_OR_PHONE",
+    "flowType": "USER_INPUT_CODE_AND_MAGIC_LINK",
+    "coreImage": "Unpinned upstream: supertokens/supertokens-postgresql; digest is an open reproducibility gate"
+  }
+}
