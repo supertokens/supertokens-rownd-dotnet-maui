@@ -5,6 +5,14 @@ options:
 packages:
   Rownd:
     path: ../../../supertokens-rownd-ios
+schemes:
+  RowndMauiBridge:
+    build:
+      targets:
+        RowndMauiBridge: all
+    test:
+      targets:
+        - RowndMauiBridgeTests
 targets:
   RowndMauiBridge:
     type: framework

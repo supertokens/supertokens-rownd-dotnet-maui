@@ -16,6 +16,7 @@ for platform in iphoneos iphonesimulator; do
   find "build/$platform/Build" -type d -name '*.bundle' -prune \
     -exec cp -R '{}' "build/$platform.xcarchive/Products/Library/Frameworks/RowndMauiBridge.framework/" \;
 done
+rm -rf build/RowndMauiBridge.xcframework
 xcodebuild -create-xcframework \
   -framework build/iphoneos.xcarchive/Products/Library/Frameworks/RowndMauiBridge.framework \
   -framework build/iphonesimulator.xcarchive/Products/Library/Frameworks/RowndMauiBridge.framework \
