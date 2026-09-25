@@ -11,6 +11,33 @@ Implementation advanced from `2a6dca5`; **M3 exit gate is open**. No integration
 - iOS framework inspection checks device arm64 and Apple Silicon simulator slices, generated selectors and Rownd/GoogleSignIn bundles after archive creation. Actual linker/resource loading remains a Mac/device check. Intel simulator architecture is not claimed by this checker.
 - `pack.sh all` produces one public multi-target facade package with conditional native dependencies and validates its dependency groups. Platform packs remain available for development. Package version is `0.0.1-m3`; the sample defaults to package references, while the source-build helper explicitly opts into project references. Combined feed selection is supported by isolated package verification. Sample subscriptions are idempotent across repeated appearance.
 
+## Mac combined-feed verification — 2026-09-25
+
+Tested `42875b5` plus a local iOS framework-checker fix and two regression tests. Source checks passed for Android `cd08c866828232d130f32df3c1c47ee7fabe1a2c`, iOS `95bd10b6c5bec1678fa6094e031a3e1cbf900901` (local/unreleased), and Hub `086014e0f29c00722b260e69a9f28ff47512bf0f`. Host: .NET/workload set 10.0.200, MAUI 10.0.20, Android workload 36.1.43, iOS workload 26.2.10217, Homebrew JDK 21.0.12.1, Xcode 26.2 (17C52).
+
+- **PASS:** 78 managed tests; 17 package-checker tests after the checker correction. Managed restore emitted NU1900 because the existing NuGet vulnerability-cache file was inaccessible; tests completed successfully.
+- **PASS:** Android native build and runtime packaging (118 embedded artifacts, 64 provided by NuGet dependencies). Gradle reused its up-to-date unit-test task; retained XML reports show 58 passed, no failures/errors/skips. This run did not re-execute those JVM tests.
+- **PASS after checker correction:** device and simulator XCFramework archives. The new checker initially rejected the real universal simulator header because Swift emits separate architecture declarations. It now intersects selectors across all declarations, requiring each to satisfy the binding. Positive universal-header and missing-selector-in-one-architecture tests pass. Real slices, selectors and resource bundles pass inspection.
+- **PASS:** combined `0.0.1-m3` feed; conditional dependencies and Android package inspection. All AARs across the four packages contain eight distinct required JNI paths and no duplicates.
+- **PASS:** isolated package-only Android Release consumer, normal trimming/profiled AOT, zero warnings/errors and no XA4301 warnings. Consumer: `/private/var/folders/5r/6bl83v_92vg_zgq58303jlc00000gn/T/rownd-consumer.Q3ZWDB`. APK contains 206 unique native-library paths.
+- **PASS:** isolated package-only iOS Release Apple Silicon simulator consumer, normal optimization, zero warnings/errors. Consumer: `/private/var/folders/5r/6bl83v_92vg_zgq58303jlc00000gn/T/rownd-consumer.0EhAtk`. Both restores contain the expected three Rownd packages, separate package caches and no project libraries/references.
+- **UNRUN:** installing/launching these M3 artifacts, physical-device signing/authentication, runtime Swift/resource linkage, subscriptions/disposal and native initialization error mapping. No fixture was used for these build checks. The deferred upstream release remains open; successful local builds do not establish published-SDK availability or physical Release acceptance.
+
+The first managed clean hit NETSDK1005 from stale iOS-only restore metadata. Prior binding/facade `bin` and `obj` trees were preserved under `/private/tmp/rownd-m3-prior-vp8q55ra`, then fresh outputs were built. Packaging retains existing analyzer/binding and missing-readme warnings; isolated consumer builds are warning-free. Logs: `/Users/bogdan/Documents/Codex/2026-09-25/anal/work/m3-*.log`. No commit, push or release was performed for this verification.
+
+### Mac artifact SHA-256
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `SuperTokens.Rownd.Foundation.0.0.1-m3.nupkg` | `991961f1f863b23fb63bb7973e17768d07326bf2031d32fd7e54ee05819291c4` |
+| `SuperTokens.Rownd.Maui.0.0.1-m3.nupkg` | `4e9b23c1cc4214a52734367e8635b811b804c11a8453ff50a6bcef6180010211` |
+| `SuperTokens.Rownd.Native.Android.0.0.1-m3.nupkg` | `f324add5a637693027bf9dbcbf826f588a23b80f56a34010b676db84de2515a4` |
+| `SuperTokens.Rownd.Native.iOS.0.0.1-m3.nupkg` | `4e8e9336fc68558c47bf005c2fa385b2cc6e9c1a4bb8770114c551b8294723c0` |
+| `io.supertokens.maui.buildcheck-Signed.apk` | `457680c4fb24b7da6e7d12978c5870e7b6423adf311c0accfcecbdd5b38db027` |
+| `iOS app file manifest (m3-ios-app-sha256.txt)` | `808fa671ff0ebb102f5551e90130ddf3cf57ef0b909ee6d271213ef16fd08fe0` |
+
+The iOS hash above identifies the sorted per-file SHA-256 manifest of the generated simulator app, not an IPA. The manifest and full artifact paths are retained in `/Users/bogdan/Documents/Codex/2026-09-25/anal/outputs/m3-ios-app-sha256.txt` and `m3-artifact-hashes.json`.
+
 ## Verification on Linux
 
 - Installed .NET SDK **10.0.200** alongside existing 10.0.401, without changing repository pins. Used the existing tooling environment for JDK/Android paths.

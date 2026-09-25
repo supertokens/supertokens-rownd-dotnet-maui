@@ -22,9 +22,15 @@ def binding_selectors(api_definition):
 def objc_selectors(header):
     text = without_comments(header)
     declarations = re.findall(r'@interface\s+RWNRowndBridge\s*:\s*[^\n]+(.*?)@end', text, re.S)
-    assert len(declarations) == 1, 'Missing or repeated RWNRowndBridge declaration'
+    assert declarations, 'Missing RWNRowndBridge declaration'
+    # Universal Swift headers repeat the interface in architecture branches.
+    # Require each branch to satisfy the binding, never their combined union.
+    return set.intersection(*(declaration_selectors(d) for d in declarations))
+
+
+def declaration_selectors(declaration):
     selectors = set()
-    for method in re.findall(r'^\s*-\s*\([^\n]+?\)\s*([^;]+);', declarations[0], re.M):
+    for method in re.findall(r'^\s*-\s*\([^\n]+?\)\s*([^;]+);', declaration, re.M):
         # Parameter types can contain block signatures. Selector components only
         # occur before colons; types and Swift-name attributes do not contribute.
         method = re.split(r'\b(?:SWIFT_\w+|NS_\w+|__attribute__)\s*\(', method)[0]

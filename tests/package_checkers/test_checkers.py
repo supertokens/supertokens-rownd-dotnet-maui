@@ -98,6 +98,16 @@ class IosFrameworkTests(unittest.TestCase):
     def test_full_selectors(self):
         ios.check_selectors(self.header, self.api)
 
+    def test_universal_header_architecture_declarations(self):
+        header = '#if defined(__arm64__)\n' + self.header + '\n#elif defined(__x86_64__)\n' + self.header + '\n#endif\n'
+        ios.check_selectors(header, self.api)
+
+    def test_universal_header_requires_selectors_in_every_architecture(self):
+        incomplete = self.header.replace('- (void)requestSignIn;', '')
+        header = '#if defined(__arm64__)\n' + self.header + '\n#elif defined(__x86_64__)\n' + incomplete + '\n#endif\n'
+        with self.assertRaisesRegex(AssertionError, 'requestSignIn'):
+            ios.check_selectors(header, self.api)
+
     def test_renamed_hub_url(self):
         with self.assertRaisesRegex(AssertionError, 'configureWithAppKey:apiDomain:apiBasePath:hubURL:scheme:completion:'):
             ios.check_selectors(self.header.replace('hubURL:', 'hubUrl:'), self.api)
@@ -117,7 +127,7 @@ class IosFrameworkTests(unittest.TestCase):
             ios.check_selectors(self.header.replace('- (void)requestSignIn;', '+ (void)requestSignIn;'), self.api)
 
     def test_missing_bridge_declaration(self):
-        with self.assertRaisesRegex(AssertionError, 'Missing or repeated RWNRowndBridge'):
+        with self.assertRaisesRegex(AssertionError, 'Missing RWNRowndBridge'):
             ios.check_selectors(self.header.replace('RWNRowndBridge', 'AnotherBridge'), self.api)
 
     def test_exports_come_from_binding(self):
