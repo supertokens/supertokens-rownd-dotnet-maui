@@ -20,17 +20,17 @@ Verified runtime sequence:
 3. Terminate/relaunch the app process without reinstalling or clearing data, re-enter the same configuration, and observe authentication restored without another OTP. A second protected request returns the same user ID and session handle.
 4. Sign out, observe `Signed out`, call the protected action and observe `No session`, then reopen the signed-out Hub.
 
-Persistence evidence covers native session restoration after explicit reconfiguration; the sample does not persist its editable configuration and this does not establish automatic cold-start/deep-link behavior. After successful protected requests, the status label changed to `Authenticated: identity pending` despite the correct backend identity; this led to the native identity-state patch described below. Release/package-consumer runtime, physical devices, phone callbacks, expiry/recovery, and a repeatable unattended iOS driver remain open gates.
+Persistence evidence covers native session restoration after explicit reconfiguration; the sample does not persist its editable configuration and this does not establish automatic cold-start/deep-link behavior. After successful protected requests, the status label changed to `Authenticated: identity pending` despite the correct backend identity; this led to the native identity-state fix described below. Release/package-consumer runtime, physical devices, phone callbacks, expiry/recovery, and a repeatable unattended iOS driver remain open gates.
 
 The shared Hub/Core/plugin fixture used localhost API 3137 and Hub 8787, Node v26.7.0, the locked Rownd plugin 0.3.0-beta.2, Postgres 14 and Core image digest `supertokens/supertokens-postgresql@sha256:8302ef1766b05c2b85cbed85de8d6e7fb38dedfe041918327e24e5b33d6f2590`. Local HTTP worked on this simulator without an ATS exception; this is not evidence for arbitrary hosts or physical devices. The image remains unpinned in fixture startup.
 
 The first attempts from a restricted agent sandbox failed before tests ran (CoreSimulator connection errors and Swift cache writes denied). With approved elevated execution, both native tests passed. Those runner failures were not evidence of an application crash.
 
-### Native identity-state patch
+### Native identity-state fix
 
-The pinned iOS SDK's authenticator cache does not observe profile actions that populate `auth.userId`. A subsequent token read or refresh could publish the older auth snapshot and erase the hydrated identity. `native/ios/auth-identity.patch` makes the compatibility-state read, derivation, persistence and dispatch run together on the main actor using the current store. Same-session identity is preserved; replacement sessions still clear profile state and failed persistence does not publish changes. A second bug omitted `userId` from `AuthState.CodingKeys`: saving and reloading compatibility state erased the ID even with the cache fix. The patch persists the optional `user_id` field; older saved states remain decodable and signed-out states retain no identity.
+The previous iOS SDK's authenticator cache does not observe profile actions that populate `auth.userId`. A subsequent token read or refresh could publish the older auth snapshot and erase the hydrated identity. The upstream iOS SDK fix makes the compatibility-state read, derivation, persistence and dispatch run together on the main actor using the current store. Same-session identity is preserved; replacement sessions still clear profile state and failed persistence does not publish changes. A second bug omitted `userId` from `AuthState.CodingKeys`: saving and reloading compatibility state erased the ID even with the cache fix. The SDK persists the optional `user_id` field; older saved states remain decodable and signed-out states retain no identity.
 
-`build-native-ios.sh` now calls `prepare-ios-source.py`, which validates the existing source pins, copies tracked Swift package inputs into `native/ios/build/patched-native`, applies the reviewed patch with zero fuzz, and adds the regression tests. XcodeGen links this overlay. The sibling iOS checkout and its pin remain unchanged. Rebuild the XCFramework before rebuilding or packaging the managed binding after changing this patch. A normal incremental .NET build reused the old embedded framework during verification; clean the iOS consumer and its project references first (use the appropriate configuration/runtime for other consumers):
+The fix and regression tests now live in `supertokens-rownd-ios`; the .NET build links the pinned sibling SDK directly. No iOS source overlay or patch is applied. The source pin currently selects the locally tested SDK commit pending publication of the next release. All 300 upstream package tests and both SDK-version tests passed; the direct-source XCFramework and clean Debug MAUI sample builds also passed. Rebuild the XCFramework before rebuilding or packaging the managed binding after updating the SDK. A normal incremental .NET build reused the old embedded framework during verification; clean the iOS consumer and its project references first (use the appropriate configuration/runtime for other consumers):
 
 ```sh
 dotnet clean samples/Passwordless/Passwordless.csproj -c Debug \
@@ -45,7 +45,7 @@ ROWND_IOS_TEST_DESTINATION='platform=iOS Simulator,id=SIMULATOR_UDID' \
   bash scripts/test-native-ios.sh
 ```
 
-The suite covers profile hydration followed by token read and same-session refresh, replacement-session profile clearing, persistence failure, serialization/reload, legacy decoding and signed-out state. These use the actual patched Swift authenticator with a controlled session client, not C# mocks. All five regression tests (six cases, including both token read and refresh) pass with the patch; the original source fails both identity-preservation cases (eight failed assertions). The existing 13 `AuthTests` also pass. After rebuilding both XCFramework slices and cleaning/rebuilding the Debug sample, computer use verified that the authenticated ID remains equal to the backend-verified ID after protected requests, including after process termination, relaunch and explicit reconfiguration. Sign-out clears authentication and the next protected action reports `No session`.
+The suite covers profile hydration followed by token read and same-session refresh, replacement-session profile clearing, persistence failure, serialization/reload, legacy decoding and signed-out state. These use the actual Swift authenticator with a controlled session client, not C# mocks. All five regression tests (six cases, including both token read and refresh) pass with the SDK fix; the original source fails both identity-preservation cases (eight failed assertions). The existing 13 `AuthTests` also pass. After rebuilding both XCFramework slices and cleaning/rebuilding the Debug sample, computer use verified that the authenticated ID remains equal to the backend-verified ID after protected requests, including after process termination, relaunch and explicit reconfiguration. Sign-out clears authentication and the next protected action reports `No session`.
 
 ### Earlier iOS simulator check after 84fbfdf (Xcode 26.2, iOS 26.3)
 
@@ -77,7 +77,7 @@ Exact pins from `eng/versions.json`:
 | JDK | `21.0.12` |
 | Android compile SDK | `36` for facade; sibling library also needs `35` |
 | Android source | `cd08c866828232d130f32df3c1c47ee7fabe1a2c` (`0.1.14`) |
-| iOS source | `0c89cac4fc541e72d1c366c1b0a5cdac77d83ea6` (`0.2.4`) |
+| iOS source | `95bd10b6c5bec1678fa6094e031a3e1cbf900901` (pending release; based on `0.2.4`) |
 | Hub source | `086014e0f29c00722b260e69a9f28ff47512bf0f` |
 
 Use the sibling Gradle wrapper (**8.11.1**, AGP **8.9.1**, Kotlin Android plugin **2.1.20**), not system Gradle. Install the pinned SDK/JDK, Android command-line tools, then on Mac:

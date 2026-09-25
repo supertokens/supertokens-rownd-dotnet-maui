@@ -4,7 +4,7 @@ options:
     iOS: "15.0"
 packages:
   Rownd:
-    path: build/patched-native
+    path: ../../../supertokens-rownd-ios
 schemes:
   RowndMauiBridge:
     build:
