@@ -1,5 +1,7 @@
 # Testing on a Mac
 
+**Current M4 link/lifecycle procedures:** [testing-m4.md](testing-m4.md), with [actual M4 evidence](m4-status.md). Its embedded startup config, observed shared harness and concrete Appium drivers supersede the older interactive-config/expected-ID/targeted-dispatch procedures below. Historical runtime evidence remains scoped to its recorded revisions. M3 combined-feed Mac build results are in [m3-status.md](m3-status.md); they do not establish M4 runtime results.
+
 For current package-only Release validation, offline checker tests and physical-device evidence, follow the [M3 validation runbook](testing-m3.md).
 
 **M2 runtime acceptance remains open.** Android Debug and Release email OTP have limited emulator evidence; other runtime gates remain.

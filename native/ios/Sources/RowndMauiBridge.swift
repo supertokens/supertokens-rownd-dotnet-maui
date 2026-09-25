@@ -30,6 +30,8 @@ public final class RowndMauiBridge: NSObject, StoreSubscriber {
         configured = true
         Rownd.config.baseUrl = hubURL
         Rownd.config.deepLinkScheme = scheme
+        // Clipboard auto-consume would bypass the MAUI readiness queue.
+        Rownd.config.enableSmartLinkPasteBehavior = false
         Task { @MainActor in
             // Pinned native configure can fatalError on keychain/bootstrap failures.
             // This cannot be translated to an NSError by an external facade.

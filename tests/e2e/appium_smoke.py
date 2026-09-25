@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Opt-in real native MAUI smoke. Requires an existing Appium session; never creates a session implicitly."""
+"""Minimal Appium HTTP transport and backwards-compatible opt-in smoke entry point."""
 import json
 import os
 import sys
@@ -67,68 +67,11 @@ def wait(check):
 
 
 def run(platform, scenario):
-    config = json.loads(open(os.environ['ROWND_E2E_CONFIG']).read())
+    from magic_links import Journey
+    with open(os.environ['ROWND_E2E_CONFIG']) as file:
+        config = json.load(file)
     driver = Appium(os.environ['ROWND_APPIUM_URL'], os.environ['ROWND_APPIUM_SESSION'], platform)
-    driver.context('NATIVE_APP')
-    for field in ['app-key', 'api-domain', 'api-path', 'hub-url', 'link-scheme', 'protected-url']:
-        driver.fill(field, config[field])
-    driver.click('configure')
-    wait(lambda: driver.text('auth-status') == 'Signed out')
-    identifier = config['email' if scenario == 'smoke' else 'phone']
-    key = 'email' if scenario == 'smoke' else 'phoneNumber'
-    capture_url = config['harness-url'].rstrip('/') + '/captures/latest?' + urllib.parse.urlencode({key: identifier})
-    try:
-        request(capture_url)
-    except urllib.error.HTTPError as error:
-        if error.code != 404:
-            raise
-    else:
-        raise RuntimeError('Use a fresh identity/capture namespace')
-    driver.click('sign-in')
-    wait(driver.webview)
-    if scenario != 'smoke':
-        # Selector is explicit because Hub phone navigation depends on app config.
-        driver.click(config['phone-selector'], web=True)
-    driver.fill('#rph-sign-in-identifier-input', identifier, web=True)
-    driver.click('[data-testid="rownd-ui-login-continue-button"]', web=True)
-    capture = wait(lambda: request(capture_url))
-    if capture.get(key) != identifier:
-        raise RuntimeError('Capture identity mismatch')
-    if scenario == 'smoke':
-        driver.click('[data-testid="rownd-ui-passwordless-waiting-use-code"]', web=True)
-        driver.fill('#rph-passwordless-code-input', capture['userInputCode'], web=True)
-        driver.click('[data-testid="rownd-ui-passwordless-code-submit"]', web=True)
-    else:
-        link = capture['urlWithLinkCode']
-        uri = urllib.parse.urlsplit(link)
-        query = urllib.parse.parse_qs(uri.query)
-        if query.get('displayContext') != ['mobile_app'] or not query.get('preAuthSessionId') or not uri.fragment:
-            raise RuntimeError('Capture lacks mobile challenge/code')
-        # Preserve the encoded suffix byte-for-byte. This is custom-scheme evidence,
-        # not verified HTTPS association or browser fallback evidence.
-        link = config['link-scheme'] + '://account/login' + link[link.index('?'):]
-        driver.context('NATIVE_APP')
-        driver.call('/appium/app/background', {'seconds': -1})
-        args = {'url': link}
-        args['package' if platform == 'android' else 'bundleId'] = config['application-id']
-        driver.call('/execute/sync', {'script': 'mobile: deepLink', 'args': [args]})
-    driver.context('NATIVE_APP')
-    wait(lambda: driver.text('auth-status').startswith('Authenticated:'))
-    driver.click('protected-api')
-    def verified():
-        try:
-            result = json.loads(driver.text('protected-result'))
-            return result.get('userId') == config['expected-user-id']
-        except json.JSONDecodeError:
-            return False
-    wait(verified)
-    driver.click('sign-out')
-    wait(lambda: driver.text('auth-status') == 'Signed out')
-    driver.click('protected-api')
-    wait(lambda: driver.text('protected-result') == 'No session')
-    driver.click('sign-in')
-    wait(driver.webview)
-    print('PASS: native login, backend-verified expected user, sign-out and reopened Hub; other milestone gates remain pending')
+    Journey(platform, config, driver).run(scenario)
 
 
 if __name__ == '__main__':

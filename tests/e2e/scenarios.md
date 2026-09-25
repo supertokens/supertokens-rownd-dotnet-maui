@@ -1,5 +1,9 @@
 # Device scenarios — runtime validation pending
 
+**M4:** `scripts/test-passwordless.sh` now invokes concrete `magic_links.py` drivers for Android/iOS Simulator: warm/cold/startup phone links, email regression, real expiry, OTP, replay, native persistence and host lifecycle checks. See [the current runbook](../../docs/testing-m4.md) for embedded startup config, the shared correlated-observation harness, untargeted OS dispatch and exact commands. These drivers remain **UNRUN** on devices. `refresh-recovery` remains blocked for M5. The older C# orchestration contracts below are still mock-tested contracts; they are not the concrete Python implementation or device evidence.
+
+## Earlier M2/M1 contracts (planning history)
+
 M2 adds an opt-in Appium driver for the **initial** email OTP and warm captured-phone-link smoke, backed by the real native sample. It has never been run. See [driver setup and exact limits](../../docs/m2-status.md). `scripts/test-passwordless.sh` requires `ROWND_RUN_E2E=1`; delayed-startup and refresh-recovery still exit **2 (blocked)**.
 `PasswordlessScenarios.cs` compiles the fuller email OTP, phone warm/cold/replay, delayed initialization and refresh/recovery orchestration below. Its richer device-driver interfaces still have no concrete mobile implementation. The initial Appium driver does not satisfy those complete contracts. Offline unit tests use recording/scripted doubles to validate the runner's decisions, not authentication.
 The sample's stable action IDs are `sign-in`, `auth-status`, `protected-api`, `sign-out`.

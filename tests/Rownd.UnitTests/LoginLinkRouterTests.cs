@@ -10,7 +10,7 @@ public sealed class LoginLinkRouterTests
     private static readonly RowndConfiguration Config = new("key", "https://api.example.test", "/auth", "https://hub.example.test", "testapp");
 
     [Fact]
-    public void QueuedDuplicatesDrainOnceWithExactEncodingAndDistinctLinksSurvive()
+    public void QueuedDuplicatesCoalesceAndLatestDistinctLinkWinsWithExactEncoding()
     {
         var forwarded = new List<string>();
         using var router = Create(value =>
@@ -25,8 +25,8 @@ public sealed class LoginLinkRouterTests
         router.Configure(Config);
         router.NativeReady();
         router.NativeReady();
-        Assert.True(router.Handle(Link));
-        Assert.Equal(new[] { Link, distinct }, forwarded);
+        Assert.True(router.Handle(distinct));
+        Assert.Equal(new[] { distinct }, forwarded);
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class LoginLinkRouterTests
             return false;
         });
         router.NativeReady();
-        Assert.False(router.Handle(Link));
+        Assert.True(router.Handle(Link));
         Assert.True(router.Handle(Link));
         Assert.True(router.Handle(Link));
         Assert.Equal(2, calls);
@@ -99,7 +99,7 @@ public sealed class LoginLinkRouterTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void FailedQueuedHandoffDoesNotBlockDistinctLinkOrRetry(bool throws)
+    public void FailedLatestQueuedSubmissionDoesNotPoisonRetry(bool throws)
     {
         var forwarded = new List<string>();
         using var router = Create(value =>
@@ -113,11 +113,11 @@ public sealed class LoginLinkRouterTests
         Assert.True(router.Handle(Link + "other"));
         router.NativeReady();
         Assert.True(router.Handle(Link));
-        Assert.Equal(new[] { Link, Link + "other", Link }, forwarded);
+        Assert.Equal(new[] { Link + "other", Link }, forwarded);
     }
 
     [Fact]
-    public void QueueCapacityCountsDistinctLinksAndRecoversAfterDrain()
+    public void QueueCapacityIsOneAndNewDistinctCallbackReplacesOlder()
     {
         var calls = 0;
         using var router = Create(_ =>
@@ -127,10 +127,11 @@ public sealed class LoginLinkRouterTests
         });
         for (var i = 0; i < LoginLinkRouter.PendingLimit; i++) Assert.True(router.Handle(Link + i));
         Assert.True(router.Handle(Link + 0));
-        Assert.False(router.Handle(Link + "overflow"));
+        Assert.True(router.Handle(Link + "overflow"));
         router.NativeReady();
         Assert.Equal(LoginLinkRouter.PendingLimit, calls);
         Assert.True(router.Handle(Link + "overflow"));
+        Assert.Equal(1, calls);
     }
 
     [Fact]
@@ -242,6 +243,60 @@ public sealed class LoginLinkRouterTests
         var router = new LoginLinkRouter(forward, clock);
         router.Configure(Config);
         return router;
+    }
+
+    [Fact]
+    public void InitializationAndHostResumeMustBothCompleteBeforeDelivery()
+    {
+        var forwarded = new List<string>();
+        using var router = Create(value => { forwarded.Add(value); return true; });
+        router.Suspend();
+        Assert.True(router.Handle(Link));
+        router.NativeReady();
+        Assert.Empty(forwarded);
+        router.Resume();
+        router.Resume();
+        Assert.Equal(new[] { Link }, forwarded);
+        router.Suspend();
+        Assert.True(router.Handle(Link + "new"));
+        Assert.Single(forwarded);
+        router.Resume();
+        Assert.Equal(2, forwarded.Count);
+    }
+
+    [Fact]
+    public void ExpiredStartupQueueIsDroppedAndCapacityRecovered()
+    {
+        var clock = new Clock();
+        var forwarded = new List<string>();
+        using var router = Create(value => { forwarded.Add(value); return true; }, clock);
+        for (var i = 0; i < LoginLinkRouter.PendingLimit; i++) Assert.True(router.Handle(Link + i));
+        clock.Advance(LoginLinkRouter.PendingLifetime);
+        Assert.True(router.Handle(Link + "fresh"));
+        router.NativeReady();
+        Assert.Equal(new[] { Link + "fresh" }, forwarded);
+    }
+
+    [Theory]
+    [InlineData("https://hub.example.test:8443/account/login")]
+    [InlineData("https://user@hub.example.test/account/login")]
+    [InlineData("testapp://user@account/login")]
+    public void OtherOriginsAndUserInfoRemainUnhandled(string value)
+    {
+        using var router = Create(_ => throw new Exception("Must not forward"));
+        Assert.False(router.Handle(value));
+    }
+
+    [Fact]
+    public void OversizedLinkCannotOccupyReadinessQueue()
+    {
+        using var router = Create(_ => true);
+        var oversized = Link + new string('x', 16384);
+        Assert.True(router.Recognizes(oversized));
+        Assert.False(router.Handle(oversized));
+        router.Dispose();
+        Assert.True(router.Recognizes(Link));
+        Assert.False(router.Handle(Link));
     }
 
     private sealed class Clock : TimeProvider

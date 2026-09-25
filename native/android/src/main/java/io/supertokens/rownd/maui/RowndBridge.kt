@@ -42,6 +42,8 @@ class RowndBridge {
                 require(scheme.matches(Regex("[A-Za-z][A-Za-z0-9+.-]*")) &&
                     scheme.lowercase() !in listOf("http", "https")) { "Use a custom scheme" }
                 configured = true
+                // Clipboard auto-consume would bypass the MAUI readiness queue.
+                Rownd.config.enableSmartLinkPasteBehavior = false
                 Rownd.configure(activity, RowndConfigureOptions(appKey = appKey,
                     apiDomain = apiDomain, apiBasePath = apiBasePath, hubUrl = hubUrl,
                     deepLinkScheme = scheme))

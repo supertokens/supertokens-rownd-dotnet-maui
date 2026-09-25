@@ -5,7 +5,7 @@ platform="${1:-android}"
 [[ "$platform" == android || "$platform" == ios ]] || exit 2
 consumer="$(mktemp -d "${TMPDIR:-/tmp/opencode}/rownd-consumer.XXXXXX")"
 cp -R "$root/samples/Passwordless/Platforms" "$consumer/Platforms"
-cp "$root/samples/Passwordless/MauiProgram.cs" "$root/samples/Passwordless/Passwordless.csproj" "$consumer/"
+cp "$root"/samples/Passwordless/*.cs "$root/samples/Passwordless/Passwordless.csproj" "$consumer/"
 cp "$root/global.json" "$consumer/"
 # RowndUsePackage disables every source ProjectReference; an isolated package cache
 # prevents a previous local prerelease with the same version satisfying this check.

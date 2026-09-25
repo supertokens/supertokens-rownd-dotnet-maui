@@ -25,6 +25,7 @@ internal sealed class PlatformBridge : INativeBridge
             {
                 if (disposed) return;
                 if (error is null) RowndLinks.NativeReady();
+                else RowndLinks.Dispose();
                 completion(error);
             });
     }

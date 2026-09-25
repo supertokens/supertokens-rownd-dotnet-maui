@@ -1,7 +1,7 @@
 # SuperTokens Rownd MAUI — native bridge preview
 
 .NET 10 Android/iOS authentication replacement for customers upgrading `Rownd.Maui`.
-**M3 implementation is in progress; release acceptance remains open.** See [M3 checks and blockers](docs/m3-status.md) and [user-recorded Mac/runtime results](docs/testing.md).
+**M4 link/lifecycle implementation is available; runtime and release acceptance remain open.** See [M4 status](docs/m4-status.md), [M4 runbook](docs/testing-m4.md), [M3 build evidence](docs/m3-status.md) and [user-recorded runtime results](docs/testing.md).
 
 Native Rownd owns Hub UI, token persistence, expiry and refresh. The C# facade does not initialize legacy authentication, import old `rownd_state`, or intercept HTTP requests. Existing customers must sign in once after replacing the old package.
 
@@ -22,7 +22,7 @@ ROWND_APPLICATION_ID=io.supertokens.maui.buildcheck bash scripts/verify-package.
 
 These commands build/pack without installing or launching a device. `io.supertokens.maui.buildcheck` is a build-only identifier, not the customer's identity. Local NuGet identity `SuperTokens.Rownd.Maui` version `0.0.1-m3` is provisional, unreserved and unpublished. Platform-only development packs use separate feeds under `artifacts/packages/<platform>`.
 
-On Mac with the matching workloads, Xcode and XcodeGen, build both native frameworks then run `bash scripts/pack.sh all`. This creates one public multi-target package and its transitive foundation/platform packages in `artifacts/packages/all`. The script checks conditional native dependency groups. Current M3 combined packaging still needs Mac verification; earlier M2 iOS builds and simulator results are recorded in the testing guide.
+On Mac with the matching workloads, Xcode and XcodeGen, build both native frameworks then run `bash scripts/pack.sh all`. This creates one public multi-target package and its transitive foundation/platform packages in `artifacts/packages/all`. The script checks conditional native dependency groups. M3 combined packaging and isolated Android/iOS Release builds have user-recorded Mac evidence in `docs/m3-status.md`; the changed M4 artifacts require their own verification.
 
 ## Package installation
 
@@ -77,9 +77,9 @@ Retrieve a current token per protected operation. No automatic 401 retry or glob
 
 See the [M3 validation runbook](docs/testing-m3.md) for package-only Release checks and physical-device acceptance. [Testing on a Mac](docs/testing.md) covers pinned tools, shared fixture setup, user-recorded simulator results and runtime driver prerequisites.
 
-`samples/Passwordless` has real native actions and an ordinary bearer request. Enter fixture configuration, then Configure. The development scheme **`rowndmauisample`** is registered on both platforms; the Hub must use that same scheme. Customer apps must substitute their registration. Native Android owns ComponentActivity intent forwarding: do not duplicate `OnNewIntent` delivery. iOS `AppDelegate` forwards warm URL/user-activity callbacks through `RowndLinks` to native smart-link handling. Production cold-launch/scene configuration, HTTPS associations and physical routing remain pending.
+`samples/Passwordless` has real native actions and an ordinary bearer request. Embed non-secret startup JSON with `-p:RowndStartupConfig=/absolute/path/startup.json` for automatic configuration after process death; see the [M4 runbook](docs/testing-m4.md). Without it, enter configuration manually. The development scheme **`rowndmauisample`** is registered on both platforms; the Hub must use that same scheme. Customer apps must substitute their registration. The sample Android adapter captures auth URLs before base callbacks and sanitizes the intent seen by native ComponentActivity listeners, establishing one forwarding owner. iOS uses launch URL/activity, OpenUrl and ContinueUserActivity callbacks in its selected non-scene UIApplicationDelegate lifecycle. Both adapters wait for native readiness and an active host. Physical routing remains unrun; parameterized association-file generation awaits actual domain/signing inputs.
 
-iOS forwarding is **login-only**: the configured scheme's `://account/login` and the configured Hub host's HTTPS `/account/login`. Email-verification links are outside this release and remain unhandled. `RowndLinks.Configure(config)` must precede callbacks. Exact encoded URLs are deduplicated while queued/in flight (eight distinct outstanding links maximum) and for two seconds after a successful native handoff (32 recent entries maximum, oldest evicted). Suppressed duplicates return `true`; duplicates do not extend that window. Failed native handoffs can retry immediately; replay testing can retry after two seconds. Disposal clears the router and is terminal. This is callback coalescing, not proof of authentication or server-side replay protection.
+The adapter recognizes **login-only** URLs: the configured scheme's `://account/login` and configured Hub origin's HTTPS `/account/login`. `RowndLinks.Configure(config)` must precede callbacks. Exact encoded URLs are deduplicated while queued/in flight (eight distinct outstanding links, 16 KiB per URL, two-minute pending lifetime) and for two seconds after successful native handoff (32 recent entries). Pause/resume gates presentation readiness. Disposal clears the router and is terminal. Callback coalescing does not establish authentication or server-side replay protection; the concrete M4 drivers check correlated backend consume results and native-session persistence.
 
 See [M1 shared fixture](docs/m1-status.md) and [M2 E2E driver prerequisites](docs/m2-status.md). Full Appium automation remains unproven; recorded Android checks used Appium native controls plus direct WebView inspection, and iOS checks used computer interaction. Full replay/cold-start/refresh drivers remain open; no real SMS delivery is needed.
 
