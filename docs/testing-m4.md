@@ -1,6 +1,6 @@
 # M4 phone links and lifecycle runbook
 
-These are **commands for the user's Mac/device run**, not runtime evidence. See [m4-status.md](m4-status.md). No integration, E2E, emulator, simulator or device tests were run during implementation. Keep [M3's recorded Mac results](m3-status.md) attached to their original revisions/artifact hashes.
+These are **commands for the user's Mac/device run**, not runtime evidence. See [m4-status.md](m4-status.md). No integration, E2E, emulator, simulator or device tests were run during the original implementation; subsequent Mac validation and remaining failures are recorded in that status document. Keep [M3's recorded Mac results](m3-status.md) attached to their original revisions/artifact hashes.
 
 ## Toolchain and offline checks
 
@@ -119,7 +119,7 @@ External runner JSON (`ROWND_E2E_CONFIG`), distinct from embedded startup JSON:
 }
 ```
 
-Choose controlled test identities, actual app ID/device ID, and **actual code lifetime plus a margin** for expiry (901 is only appropriate for a 900-second lifetime). `debug-lifecycle` invokes the sample's Debug Android `Activity.Recreate()` button; set false for Release/iOS and record that gate separately. `https-handoff: cold` tests terminated HTTPS entry with a fresh challenge. Optional `hub-close-selector` overrides the pinned `.rph-close[aria-label="close"]`; inspect the real Hub before overriding. `expected-user-id` provisioning is no longer required: the real successful consume for the exact captured challenge establishes expected identity, independently compared with C# state and the bearer-protected backend result.
+Choose controlled test identities, actual app ID/device ID, and **actual code lifetime plus a margin** for expiry (901 is only appropriate for a 900-second lifetime). `debug-lifecycle` invokes the sample's Debug Android `Activity.Recreate()` button; set false for Release/iOS and record that gate separately. `https-handoff: cold` tests terminated HTTPS entry with a fresh challenge. Presenter cancellation uses native Back on Android and a tap on the exposed native sheet backdrop on iOS; the pinned Hub hides its HTML close control in mobile-app context. Optional `hub-close-selector` is for hosts with an actually rendered HTML close control; inspect the real Hub before setting it. `expected-user-id` provisioning is no longer required: the real successful consume for the exact captured challenge establishes expected identity, independently compared with C# state and the bearer-protected backend result.
 
 ```sh
 export ROWND_APPIUM_URL=http://127.0.0.1:4723

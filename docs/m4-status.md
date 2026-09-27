@@ -1,6 +1,6 @@
 # M4 implementation and evidence
 
-Base: clean **1417a85**, including the user's universal iOS header-check fix and M3 Mac validation. Pins and those recorded results are preserved. **M4 runtime/exit gate remains open. No integration/E2E/device tests were run during this implementation.** The existing M2 simulator/emulator runtime evidence and M3 Mac builds apply to their recorded revisions, not these new artifacts.
+Base: clean **1417a85**, including the user's universal iOS header-check fix and M3 Mac validation. Pins and those recorded results are preserved. **M4 runtime/exit gate remains open. The implementation-time evidence below is historical; subsequent Mac builds and runtime results are recorded in [Mac validation](#mac-validation--2026-09-25-to-2026-09-27).** The existing M2 simulator/emulator runtime evidence and M3 Mac builds apply to their recorded revisions, not these new artifacts.
 
 ## Implemented
 
@@ -72,10 +72,79 @@ Full paths/hashes: `/tmp/opencode/rownd-m4-artifact-hashes.json`. These identify
 
 ## Open gates / necessary inputs
 
-1. **UNRUN:** every new Appium journey on both runtimes. Real Hub/WebView driver setup and platform behavior must be established on the user's Mac. Unit/mock checks do not satisfy phone authentication. Capture replaces provider delivery; no real SMS/tap requested.
+1. **PARTIALLY VALIDATED:** see the Mac journey matrix below. Android cold/startup handoff failures keep the exit gate open. Capture replaces provider delivery; no real SMS was sent.
 2. **UNRUN:** physical signed Release custom-scheme/HTTPS/browser fallback, warm/cold handoff, native iOS presentation/resources, same-device-policy compatibility, active-Hub activity recreation and native terminal-subscription disposal. Automated recreation covers the authenticated Android host; physical iPhone external taps and actual browser fallback are documented manual gates.
 3. **INPUTS:** custom HTTPS Hub/login hostname + hosting access, Android package ID and installed signing certificate SHA-256(s), iOS bundle ID and signed application-identifier prefix/team + Associated Domains provisioning. Also actual devices/UDIDs, device-reachable trusted API/Hub endpoints and selected same-device policy. Generation deploys nothing; forced app targeting cannot prove association.
 4. **DEFERRED:** upstream iOS native release per user decision. Preserve the local pin; publish/update/rebuild only in a separately authorized phase. Native iOS fatal initialization error mapping remains the recorded M3 release gate. Concrete refresh/outage automation remains M5 (`refresh-recovery` fails explicitly as blocked).
 5. Core image remains unpinned in the existing shared harness; record actual digest/code lifetime. Expiry driver must wait the actual lifetime plus margin. Dedicated fixture/default namespace, one runner at a time; no concurrent resets.
 
-No subagent-spawn tool was available; no additional delegation occurred. No commits, pushes, publishing, domain deployment, integration tests or device commands were performed.
+During the original Linux implementation, no additional delegation, commits, pushes, publishing, domain deployment, integration tests or device commands were performed. Subsequent Mac validation follows.
+
+## Mac validation — 2026-09-25 to 2026-09-27
+
+Tested .NET revision `6c29807` plus local E2E driver corrections and regression tests. No production SDK/facade changes were made. This is simulator/emulator Debug runtime evidence and package-only Release build evidence, not signed physical-device acceptance.
+
+### Build and offline checks
+
+- **PASS:** all native source pins. Android `cd08c866828232d130f32df3c1c47ee7fabe1a2c`, iOS `95bd10b6c5bec1678fa6094e031a3e1cbf900901` (still local/unreleased), Hub `086014e0f29c00722b260e69a9f28ff47512bf0f`.
+- **PASS:** 111 managed tests; 40 Python checker/tool tests after driver regressions; observed harness preparation and TypeScript type check.
+- **PASS:** rebuilt Android facade/runtime and 60 native JVM tests; rebuilt iOS device/simulator XCFramework and static slice/selector/resource checks.
+- **PASS:** both startup-configured source Debug samples, combined `0.0.1-m3` feed, conditional dependency inspection, Android required JNI inspection. Whole feed has eight distinct JNI paths and no duplicates.
+- **PASS:** isolated package-only Android Release build, zero warnings/errors. Output is a signed AAB, not an installed APK. Consumer: `/private/var/folders/5r/6bl83v_92vg_zgq58303jlc00000gn/T/rownd-consumer.fCWAsi`.
+- **PASS with warning:** isolated package-only iOS Release simulator build, one CS8765 warning for `AppDelegate.FinishedLaunching`'s non-nullable `launchOptions`; zero errors. Consumer: `/private/var/folders/5r/6bl83v_92vg_zgq58303jlc00000gn/T/rownd-consumer.hc9qah`.
+- Both consumers restored only the three appropriate Rownd packages from isolated caches with no project libraries. Normal Release optimization was retained. Debug Android retains analyzer/binding warnings and XA4301 source-project duplicate-JNI warnings; these were absent from the package-only Release build. Debug iOS retains analyzer/platform/nullability warnings.
+
+### Runtime setup and limitations
+
+Android: Pixel 8 API 34 emulator (`emulator-5554`). iOS: iPhone 17 Pro simulator, iOS 26.3 (`A2E2A30F-15BE-45E3-ACF4-E89F35FF3200`). App ID: `io.supertokens.maui.buildcheck`. Automatic embedded startup config uses a ten-second Debug delay, API `http://127.0.0.1:3139`, Hub `http://127.0.0.1:8787`, and the registered `rowndmauisample` scheme. Android ports are reversed. Initialization delay is ignored by Release. No app data was cleared between successful journeys or persistence/replay checks.
+
+Toolchain: .NET/workload set 10.0.200, MAUI 10.0.20, Android 36.1.43, iOS 26.2.10217, Xcode 26.2 (17C52), JDK 21.0.12.1, Node 26.7.0. Appium 3.8.0, UiAutomator2 8.7.0, XCUITest 12.13.2; Android WebView 113.0.5672.136 with Chromedriver 113.0.5672.63. Drivers were installed in `/private/tmp/rownd-m4-appium`; sessions explicitly attach to the named devices.
+
+One dedicated M4 observation overlay/fixture was used sequentially for both platforms, with the locked Rownd plugin 0.3.0-beta.2 and Postgres 14. Actual Core digest: `supertokens/supertokens-postgresql@sha256:8302ef1766b05c2b85cbed85de8d6e7fb38dedfe041918327e24e5b33d6f2590`. Running Core uses its unoverridden 900000-ms passwordless code lifetime; expiry scenarios wait 901 seconds. Fixture app-config omits `enforce_same_device_passwordless_sign_in`; the pinned Hub evaluates that as false. This unchanged fixture policy does not prove stricter same-device-policy compatibility. Captured delivery used synthetic identities and no real SMS/email provider.
+
+### Journey results
+
+A PASS means the whole driver's assertions completed: a fresh exact-identity capture, one initial correlated JSON OK consume in a bounded observation window, matching facade/backend user and session fingerprint, interactive host, replay without another successful consume, process restart with the same verified session, subscription rebind, sign-out and signed-out restart. Android passes also include authenticated-host activity recreation. Backend observation windows do not prove exactly-once native dispatch or rule out all later attempts.
+
+| Journey | Android | iOS |
+| --- | --- | --- |
+| `phone-magic-link` | PASS | PASS |
+| `cold-phone-magic-link` | FAIL | PASS |
+| `delayed-startup` | FAIL | PASS |
+| `email-magic-link` | PASS | PASS |
+| `smoke` | PASS | PASS |
+| `sms-otp` | PASS | PASS |
+| `expired-link` | PASS | PASS |
+
+Android cold-phone and delayed-startup were retried and timed out in `Journey.complete` waiting for authenticated state after untargeted external dispatch. Warm phone/email links and both OTP flows pass. The Android cold/readiness handoff remains a runtime failure to investigate; no root cause or SDK fix is claimed.
+
+### Driver corrections and initial failures
+
+The original driver required `.rph-close[aria-label="close"]`, but the pinned Hub explicitly disables that control in mobile-app context. Cancellation now uses bounded native Back attempts on Android (accounting for the keyboard), and a tap on the exposed native backdrop computed from the iOS WebView rectangle. A fixed screen-coordinate swipe failed when the keyboard moved the sheet and was replaced. Host-touch assertions remain mandatory.
+
+The iOS driver now accepts only the exact sample-specific OS `Open in “Passwordless foundation”?` confirmation after untargeted `simctl openurl`; unrelated alerts are rejected. An unrelated Apple Account prompt was manually dismissed with Not Now; no credentials were entered. A simulator restart without data erasure recovered inspection setup. The first iOS protected request permits an absent empty result label (404), while retaining request-sequence, backend-user and session assertions. Regression tests cover these boundaries. No native authentication calls, session seeding, URL-targeting shortcuts or policy bypasses were added.
+
+Initial Android startup and presenter attempts and iOS inspection/presenter/result-label attempts failed; they are not counted as passes. Later complete runs supersede those setup failures only for the scenarios shown as PASS. The original cold/startup failures remain recorded. Raw driver/server logs and captures stay local; no OTP, token or complete callback URL is included here.
+
+### Open acceptance gates
+
+- **BLOCKED on inputs/hardware:** physical signed Release Android/iPhone journeys, verified HTTPS associations and real browser fallback. Required custom hostname/hosting, installed signing identities, iOS Associated Domains provisioning and physical-device targets were not supplied. Nothing was deployed or published.
+- **UNRUN:** active-Hub Android recreation, terminal native disposal with queued callbacks, scene-based iOS hosts, and package-only Release runtime linkage/authentication. Debug host recreation/rebind is not terminal-disposal evidence.
+- **DEFERRED:** upstream iOS publication; pins were preserved. Native iOS fatal initialization error mapping and M5 refresh/outage remain separate open gates.
+
+### Evidence
+
+Artifact SHA-256 values are recorded below. Full paths and sorted per-file iOS manifests are retained under `/Users/bogdan/Documents/Codex/2026-09-25/anal/outputs`. iOS app hashes identify those manifests, not IPAs. Logs are retained under `/Users/bogdan/Documents/Codex/2026-09-25/anal/work/m4-*.log`. Prior generated binding/facade/sample/feed outputs were preserved at `/private/tmp/rownd-m4-prior-xl2hkxhi` before rebuilding to avoid stale same-version packages. No commit, push or release was performed by this validation run.
+
+### Mac artifact SHA-256
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `SuperTokens.Rownd.Foundation.0.0.1-m3.nupkg` | `eb1952a7ad114b7fce682f3026064e716d807ddcef6eefb9358f2a7e27c704e3` |
+| `SuperTokens.Rownd.Maui.0.0.1-m3.nupkg` | `e7ca19c6213935d5f5da5c7068467b624f75b3ebd2d79c9c5648c16a619c101d` |
+| `SuperTokens.Rownd.Native.Android.0.0.1-m3.nupkg` | `c1fd7aecd52e1f686484296374d649b4e97fe7366a8d8f4f79e0486d6b5a88b3` |
+| `SuperTokens.Rownd.Native.iOS.0.0.1-m3.nupkg` | `300433f32a58e64f27ee556a1caade6c74b24d8b0178eec2eee753199e9ffe2e` |
+| `io.supertokens.maui.buildcheck-Signed.apk` | `4338cba4882967913ff8a1c4247e25c93c3092a5256d2f1fa5468a4e90911d2c` |
+| `io.supertokens.maui.buildcheck-Signed.aab` | `81045da219e0bb6ce9fd1f946df7a3c7a9a34ba8f0d6de1245daab4246194c2f` |
+| `m4-debug-ios-manifest.txt` | `0336f8868713746559585498e5a2b1f63107d20732c89effd98010543c17db22` |
+| `m4-release-ios-manifest.txt` | `588007a41c5844b38b9250245ab3ec1129b165aa18f338685afb33d335b2aa7d` |

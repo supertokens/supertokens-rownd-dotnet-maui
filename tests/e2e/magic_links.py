@@ -95,6 +95,22 @@ class Journey:
                 raise ValueError('Physical iOS external taps require the manual routing gate')
             command = ['xcrun', 'simctl', 'openurl', self.config['device-id'], url]
         subprocess.run(command, check=True, capture_output=True, timeout=45)
+        if self.platform == 'ios':
+            self.confirm_ios_open()
+
+    def confirm_ios_open(self):
+        # simctl can hand off through SpringBoard's real Open confirmation.
+        # Accept only this sample's prompt; never dismiss unrelated system alerts.
+        try:
+            text = self.driver.call('/alert/text')
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                return
+            raise
+        normalized = text.replace('“', '"').replace('”', '"')
+        if normalized != 'Open in "Passwordless foundation"?':
+            raise RuntimeError('Unexpected iOS system alert during link dispatch')
+        self.driver.call('/alert/accept', {})
 
     def observes(self, identity, timeout=20):
         records = request(self.harness + '/test/m4/observations', timeout=timeout)['consumes']
@@ -129,6 +145,40 @@ class Journey:
             except (urllib.error.HTTPError, RuntimeError, KeyError):
                 self.native()
         return False
+
+    def dismiss_hub(self):
+        # The pinned Hub disables its HTML close control in mobile_app context.
+        # Exercise the platform presenter instead of requiring a hidden control.
+        selector = self.config.get('hub-close-selector')
+        if selector:
+            self.driver.click(selector, web=True)
+            self.native()
+            return
+        self.native()
+        if self.platform == 'android':
+            # IME visibility can lag behind its animation. Stop as soon as the
+            # host is accessible, rather than relying on one keyboard snapshot.
+            for _ in range(3):
+                self.driver.call('/appium/device/press_keycode', {'keycode': 4})
+                time.sleep(0.5)
+                try:
+                    self.driver.find('auth-status')
+                    return
+                except (urllib.error.HTTPError, RuntimeError, KeyError):
+                    pass
+            raise RuntimeError('Native presenter did not dismiss')
+        else:
+            rect = self.driver.call('/window/rect')
+            webview = self.driver.call('/element', {
+                'using': 'class name', 'value': 'XCUIElementTypeWebView',
+            })['element-6066-11e4-a52e-4f735466cecf']
+            sheet = self.driver.call('/element/' + webview + '/rect')
+            if sheet['y'] <= 5:
+                raise RuntimeError('No exposed native backdrop for sheet dismissal')
+            self.driver.call('/execute/sync', {
+                'script': 'mobile: tap',
+                'args': [{'x': rect['width'] * 0.05, 'y': sheet['y'] - 5}],
+            })
 
     def create_challenge(self, email=False):
         key, identifier = ('email', self.config['email']) if email else ('phoneNumber', self.config['phone'])
@@ -170,6 +220,11 @@ class Journey:
         try:
             previous = json.loads(self.driver.text('protected-result')).get('request', 0)
         except json.JSONDecodeError:
+            previous = 0
+        except urllib.error.HTTPError as error:
+            # iOS does not expose the result Label until it has nonempty text.
+            if error.code != 404:
+                raise
             previous = 0
         self.driver.click('protected-api')
 
@@ -215,8 +270,7 @@ class Journey:
         self.mark('cancel and reopen native presenter')
         self.driver.click('sign-in')
         wait(self.hub)
-        self.driver.click(self.config.get('hub-close-selector', '.rph-close[aria-label="close"]'), web=True)
-        self.native()
+        self.dismiss_hub()
         wait(lambda: self.driver.text('auth-status') == 'Signed out')
         self.touch()
         self.mark('real Hub challenge and correlated capture')

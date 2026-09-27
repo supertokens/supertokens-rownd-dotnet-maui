@@ -7,6 +7,7 @@ import shlex
 import sys
 import tempfile
 import unittest
+import urllib.error
 from unittest.mock import Mock, patch
 import xml.etree.ElementTree as ET
 
@@ -28,6 +29,61 @@ LINK = 'https://hub.example.test/account/login?preAuthSessionId=a%2Fb%2Bc&displa
 
 
 class DriverBoundaryTests(unittest.TestCase):
+    def test_mobile_presenter_dismissal_does_not_require_hidden_html_close(self):
+        for platform in ('android', 'ios'):
+            with self.subTest(platform=platform):
+                driver = Mock()
+                if platform == 'ios':
+                    driver.call.side_effect = [
+                        {'width': 400, 'height': 800},
+                        {'element-6066-11e4-a52e-4f735466cecf': 'sheet'},
+                        {'y': 90}, None,
+                    ]
+                journey = Journey(platform, {'harness-url': 'http://localhost',
+                                             'application-id': 'test.app'}, driver)
+                journey.dismiss_hub()
+                driver.context.assert_called_once_with('NATIVE_APP')
+                driver.click.assert_not_called()
+                if platform == 'android':
+                    driver.call.assert_any_call('/appium/device/press_keycode', {'keycode': 4})
+                else:
+                    self.assertEqual(driver.call.call_args.args[0], '/execute/sync')
+                    self.assertEqual(driver.call.call_args.args[1]['script'], 'mobile: tap')
+
+    def test_android_keyboard_is_dismissed_before_presenter(self):
+        driver = Mock()
+        driver.find.side_effect = [RuntimeError('keyboard dismissed; sheet remains'), 'host']
+        journey = Journey('android', {'harness-url': 'http://localhost',
+                                      'application-id': 'test.app'}, driver)
+        with patch('magic_links.time.sleep'):
+            journey.dismiss_hub()
+        presses = [call for call in driver.call.call_args_list
+                   if call.args[0] == '/appium/device/press_keycode']
+        self.assertEqual(len(presses), 2)
+
+    def test_ios_open_confirmation_does_not_accept_unrelated_alerts(self):
+        driver = Mock()
+        journey = Journey('ios', {'harness-url': 'http://localhost',
+                                 'application-id': 'test.app'}, driver)
+        driver.call.return_value = 'Open in “Passwordless foundation”?'
+        journey.confirm_ios_open()
+        driver.call.assert_any_call('/alert/accept', {})
+        driver.reset_mock()
+        driver.call.return_value = 'Apple Account Verification'
+        with self.assertRaises(RuntimeError):
+            journey.confirm_ios_open()
+        self.assertEqual(driver.call.call_count, 1)
+
+    def test_first_protected_request_allows_missing_empty_ios_label(self):
+        driver = Mock()
+        driver.text.side_effect = [urllib.error.HTTPError('http://localhost', 404, 'no such element', {}, None),
+                                  json.dumps({'request': 1, 'userId': 'verified-user', 'sessionFingerprint': 'session'})]
+        journey = Journey('ios', {'harness-url': 'http://localhost',
+                                 'application-id': 'test.app'}, driver)
+        with patch('magic_links.wait', side_effect=lambda check: check()):
+            self.assertEqual(journey.protected('verified-user'), 'session')
+        driver.click.assert_called_once_with('protected-api')
+
     def test_unimplemented_scenario_cannot_silently_run_a_phone_smoke(self):
         driver = Mock()
         journey = Journey('android', {'harness-url': 'http://localhost', 'application-id': 'test.app'}, driver)
@@ -76,7 +132,7 @@ class DriverBoundaryTests(unittest.TestCase):
     def test_ios_dispatch_is_external_and_simulator_explicit(self):
         config = {'harness-url': 'http://localhost', 'application-id': 'test.app', 'device-id': 'explicit-udid', 'ios-device-kind': 'simulator'}
         journey = Journey('ios', config, Mock())
-        with patch('magic_links.subprocess.run') as run:
+        with patch('magic_links.subprocess.run') as run, patch.object(journey, 'confirm_ios_open'):
             journey.external_open(LINK)
         self.assertEqual(run.call_args.args[0], ['xcrun', 'simctl', 'openurl', 'explicit-udid', LINK])
         config['ios-device-kind'] = 'physical'
