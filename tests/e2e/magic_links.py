@@ -204,6 +204,9 @@ class Journey:
             return capture if challenge(capture['urlWithLinkCode']) != previous else False
 
         capture = wait(fresh)
+        # Backend delivery can precede createCode returning to the WebView. Do
+        # not kill the app until its challenge setup (including storage) finishes.
+        wait(lambda: self.driver.find('[data-testid="rownd-ui-passwordless-waiting"]', web=True))
         identity = challenge(capture['urlWithLinkCode'])
         if self.observes(identity):
             raise RuntimeError('Fresh challenge already consumed')
@@ -241,9 +244,30 @@ class Journey:
 
         return wait(verified)['sessionFingerprint']
 
+    def reject_cross_device_confirmation(self):
+        # These journeys created the challenge in this app on this device.
+        # Clicking the chooser would hide a same-device persistence regression.
+        try:
+            if self.driver.webview() and self.driver.call('/elements', {
+                'using': 'css selector',
+                'value': '[data-testid="rownd-ui-passwordless-confirm"]',
+            }):
+                raise AssertionError('Same-device callback unexpectedly requires cross-device confirmation')
+        finally:
+            self.native()
+
     def complete(self, identity):
         self.native()
-        wait(lambda: self.driver.text('auth-status').startswith('Authenticated:'))
+        def authenticated():
+            try:
+                if self.driver.text('auth-status').startswith('Authenticated:'):
+                    return True
+            except urllib.error.HTTPError as error:
+                if error.code != 404:
+                    raise
+            self.reject_cross_device_confirmation()
+            return False
+        wait(authenticated)
         records = wait(lambda: self.observes(identity))
         user = initial_consume(records)
         wait(lambda: self.driver.text('auth-status') == 'Authenticated: ' + user)

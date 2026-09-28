@@ -84,6 +84,43 @@ class DriverBoundaryTests(unittest.TestCase):
             self.assertEqual(journey.protected('verified-user'), 'session')
         driver.click.assert_called_once_with('protected-api')
 
+    def test_same_device_confirmation_fails_without_clicking(self):
+        driver = Mock()
+        driver.webview.return_value = 'WEBVIEW_test'
+        driver.call.return_value = [{'element': 'confirmation'}]
+        journey = Journey('android', {'harness-url': 'http://localhost',
+                                      'application-id': 'test.app'}, driver)
+        with self.assertRaisesRegex(AssertionError, 'cross-device confirmation'):
+            journey.reject_cross_device_confirmation()
+        driver.click.assert_not_called()
+        driver.context.assert_called_with('NATIVE_APP')
+
+    def test_absent_confirmation_does_not_change_the_page(self):
+        for webview in (None, 'WEBVIEW_test'):
+            with self.subTest(webview=webview):
+                driver = Mock()
+                driver.webview.return_value = webview
+                driver.call.return_value = []
+                journey = Journey('android', {'harness-url': 'http://localhost',
+                                              'application-id': 'test.app'}, driver)
+                journey.reject_cross_device_confirmation()
+                driver.click.assert_not_called()
+                driver.context.assert_called_with('NATIVE_APP')
+
+    def test_same_device_completion_rejects_chooser_before_backend_acceptance(self):
+        driver = Mock()
+        driver.text.side_effect = urllib.error.HTTPError('http://localhost', 404, 'sheet covers host', {}, None)
+        driver.webview.return_value = 'WEBVIEW_test'
+        driver.call.return_value = [{'element': 'confirmation'}]
+        journey = Journey('android', {'harness-url': 'http://localhost',
+                                      'application-id': 'test.app'}, driver)
+        journey.observes = Mock()
+        with patch('magic_links.wait', side_effect=lambda check: check()), \
+                self.assertRaisesRegex(AssertionError, 'cross-device confirmation'):
+            journey.complete(challenge(LINK))
+        journey.observes.assert_not_called()
+        driver.click.assert_not_called()
+
     def test_unimplemented_scenario_cannot_silently_run_a_phone_smoke(self):
         driver = Mock()
         journey = Journey('android', {'harness-url': 'http://localhost', 'application-id': 'test.app'}, driver)
@@ -103,7 +140,7 @@ class DriverBoundaryTests(unittest.TestCase):
         def condition(check):
             nonlocal calls
             calls += 1
-            if calls == 1:
+            if calls in (1, 3):  # Hub available, then challenge-ready UI.
                 return check()
             self.assertFalse(check())
             self.assertFalse(check())
@@ -114,6 +151,24 @@ class DriverBoundaryTests(unittest.TestCase):
         self.assertEqual(captured, new)
         self.assertEqual(identity, challenge(new['urlWithLinkCode']))
         self.assertIn('phoneNumber=%2B12025550123', get.call_args_list[0].args[0])
+
+    def test_delivery_capture_alone_does_not_mean_webview_challenge_is_ready(self):
+        driver = Mock()
+        driver.find.side_effect = urllib.error.HTTPError('http://localhost', 404, 'not ready', {}, None)
+        config = {'harness-url': 'http://localhost', 'application-id': 'test.app', 'phone': '+12025550123'}
+        journey = Journey('android', config, driver)
+        journey.hub = lambda: True
+        capture = {'phoneNumber': config['phone'], 'capturedAt': 1, 'urlWithLinkCode': LINK}
+        def settle(check):
+            try:
+                return check()
+            except urllib.error.HTTPError:
+                raise TimeoutError('challenge UI not ready')
+        missing = urllib.error.HTTPError('http://localhost', 404, 'no earlier capture', {}, None)
+        with patch('magic_links.request', side_effect=[missing, capture]), \
+                patch('magic_links.wait', side_effect=settle), self.assertRaises(TimeoutError):
+            journey.create_challenge()
+        driver.find.assert_called_once_with('[data-testid="rownd-ui-passwordless-waiting"]', web=True)
 
     def test_exact_suffix_survives_conversion_and_external_android_shell(self):
         url = callback(LINK, 'sample')
