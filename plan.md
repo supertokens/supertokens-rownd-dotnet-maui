@@ -223,6 +223,8 @@ Dependencies: M3; host/link registration can be prepared earlier. Basic sheet pr
 
 ### M5 — Session validation and customer handoff: 2–3 days
 
+Implementation and current evidence: [M5 runbook](docs/testing-m5.md) / [status and final acceptance matrix](docs/m5-status.md). Approved scope retains captured delivery, local provisional packaging, user-run Mac runtime checks and deferred publication; the original publication/provider steps below are historical and not authorized by this milestone.
+
 Dependencies: M3/M4. Build/test scripts and a simple CI scaffold should begin during M2, rather than being postponed entirely to this milestone.
 
 **Implement**

@@ -1,5 +1,7 @@
 # M4 implementation and evidence
 
+M5 refresh/recovery automation is now implemented; see [M5 status](m5-status.md). References below to M5 being unimplemented describe the historical M4 stage. M4's revision-specific runtime evidence and open candidate gates remain unchanged.
+
 Base: clean **1417a85**, including the user's universal iOS header-check fix and M3 Mac validation. Pins and those recorded results are preserved. **M4 runtime/exit gate remains open. The implementation-time evidence below is historical; subsequent Mac builds and runtime results are recorded in [Mac validation](#mac-validation--2026-09-25-to-2026-09-27).** The existing M2 simulator/emulator runtime evidence and M3 Mac builds apply to their recorded revisions, not these new artifacts.
 
 ## Implemented

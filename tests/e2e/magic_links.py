@@ -20,7 +20,7 @@ import urllib.parse
 from appium_smoke import Appium, request, wait
 
 SCENARIOS = frozenset({'smoke', 'sms-otp', 'phone-magic-link', 'cold-phone-magic-link',
-                       'delayed-startup', 'email-magic-link', 'expired-link', 'https-magic-link'})
+                       'delayed-startup', 'email-magic-link', 'expired-link', 'https-magic-link', 'refresh-recovery'})
 
 
 def challenge(link):
@@ -281,6 +281,9 @@ class Journey:
             raise ValueError('Unsupported scenario/platform; no device action performed')
         if not self.config.get('device-id') or (self.platform == 'ios' and self.config.get('ios-device-kind') != 'simulator'):
             raise ValueError('Explicit supported external-dispatch device required')
+        if scenario == 'refresh-recovery':
+            from refresh_recovery import RefreshRecovery
+            return RefreshRecovery(self).run()
         cold = scenario == 'cold-phone-magic-link' or (scenario == 'https-magic-link' and self.config.get('https-handoff') == 'cold')
         self.terminate()
         self.activate()

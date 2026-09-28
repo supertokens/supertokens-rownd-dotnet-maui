@@ -16,6 +16,16 @@ def transform(source):
         source = source.replace(old, new)
 
     replace('import { generateKeyPairSync }', 'import { createHash, generateKeyPairSync }')
+    replace('export async function startIntegrationHarness(): Promise<AndroidIntegrationHarness> {', '''const m5Lifetime = Number(process.env.ROWND_M5_ACCESS_TOKEN_SECONDS || 90);
+if (!Number.isInteger(m5Lifetime) || m5Lifetime <= 60 || m5Lifetime > 300) {
+  throw new Error("M5 access-token lifetime must be 61..300 seconds");
+}
+
+export async function startIntegrationHarness(): Promise<AndroidIntegrationHarness> {''')
+    replace('''      POSTGRESQL_CONNECTION_URI:
+        "postgresql://supertokens:somepassword@postgres:5432/supertokens",''', '''      POSTGRESQL_CONNECTION_URI:
+        "postgresql://supertokens:somepassword@postgres:5432/supertokens",
+      ACCESS_TOKEN_VALIDITY: String(m5Lifetime),''')
     replace('type MagicLinkCapture = {', '''const fingerprint = (value: string) => createHash("sha256").update(value).digest("hex");
 const consumeObservations: { challenge: string; status: string; userId?: string }[] = [];
 
@@ -41,6 +51,11 @@ type MagicLinkCapture = {
   });
 
   app.get("/test/passwordless/consumes",''')
+    replace('  app.get("/test/m4/observations",', '''  app.get("/test/m5/config", (_req, res) => {
+    res.json({ accessTokenSeconds: m5Lifetime, refreshFailureStatus: 503 });
+  });
+
+  app.get("/test/m4/observations",''')
     replace('''  app.get("/test/protected", verifySession({ checkDatabase: true }) as any, async (req: any, res) => {
     res.json({
       userId: req.session.getUserId(),

@@ -129,6 +129,11 @@ public sealed class PasswordlessPage : ContentPage
                     appKey, api, path, hub, scheme, endpoint, configure },
             },
         };
+#if DEBUG
+        ((VerticalStackLayout)((ScrollView)Content).Content).Children.Insert(
+            0,
+            SessionProbe.Current.CreateControls(() => endpoint.Text));
+#endif
     }
 
     protected override async void OnAppearing()

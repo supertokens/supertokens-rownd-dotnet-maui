@@ -1,13 +1,19 @@
 # This workflow will build a .NET project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
 
-name: Foundation unit tests
+name: Offline validation
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      android_build:
+        description: Build/pack on the provisioned pinned Linux Android runner
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -24,3 +30,24 @@ jobs:
       run: dotnet test tests/Rownd.UnitTests/Rownd.UnitTests.csproj -c Release
     - name: Compile opt-in integration checks (do not run)
       run: dotnet build tests/Rownd.IntegrationTests/Rownd.IntegrationTests.csproj -c Release
+    - name: Offline driver and package checker tests
+      run: python3 -m unittest discover -s tests/package_checkers -p 'test_*.py' -v
+
+  android-package:
+    if: github.event_name == 'workflow_dispatch' && inputs.android_build
+    runs-on: [self-hosted, Linux, X64, rownd-android]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Pinned native build, package and isolated consumer (no devices)
+      shell: bash
+      run: |
+        source /home/dev/.config/rownd-android-tooling/env.sh
+        python3 scripts/check-native-sources.py
+        bash scripts/build-native-android.sh :android:testDebugUnitTest
+        bash scripts/pack.sh android
+        python3 scripts/check-android-package.py
+        ROWND_APPLICATION_ID=io.supertokens.maui.buildcheck bash scripts/verify-package.sh android
+    - uses: actions/upload-artifact@v4
+      with:
+        name: provisional-android-packages
+        path: artifacts/packages/android/*

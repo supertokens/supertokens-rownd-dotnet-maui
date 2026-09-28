@@ -24,4 +24,5 @@ else
   dotnet pack "bindings/$binding/$binding.csproj" -c Release -o "$out"
   dotnet pack src/Rownd.Maui/Rownd.Maui.csproj -c Release -p:RowndTargetFrameworks="net10.0-$platform" -o "$out"
 fi
+python3 scripts/artifact-manifest.py "$out"/*.nupkg > "$out/artifact-manifest.json"
 echo "Provisional packages ($platform): $out (no runtime acceptance claimed)"
