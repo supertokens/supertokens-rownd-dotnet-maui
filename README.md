@@ -9,6 +9,8 @@ Native Rownd owns Hub UI, token persistence, expiry and refresh. The C# facade d
 
 Pinned SDK/workload set: **10.0.200**, MAUI **10.0.20**, JDK **21.0.12**, Xcode **26.2**. Source pins and open Core-image requirements are in `eng/versions.json`. Builders need the pinned sibling repositories; package consumers do not.
 
+Current beta candidate build and smoke results are recorded in [beta validation](docs/beta-status.md); older milestone reports below remain historical evidence.
+
 ```sh
 source /home/dev/.config/rownd-android-tooling/env.sh # this Linux environment
 python3 scripts/check-native-sources.py
@@ -20,16 +22,16 @@ python3 scripts/check-android-package.py
 ROWND_APPLICATION_ID=io.supertokens.maui.buildcheck bash scripts/verify-package.sh android
 ```
 
-These commands build/pack without installing or launching a device. `io.supertokens.maui.buildcheck` is a build-only identifier, not the customer's identity. Local NuGet identity `SuperTokens.Rownd.Maui` version `0.0.1-m3` is provisional, unreserved and unpublished. Platform-only development packs use separate feeds under `artifacts/packages/<platform>`.
+These commands build/pack without installing or launching a device. `io.supertokens.maui.buildcheck` is a build-only identifier, not the customer's identity. The beta candidate for GitHub distribution is `SuperTokens.Rownd.Maui` version `0.0.1-beta.1`; it has not been published to GitHub or NuGet.org. See the [beta integration guide](docs/beta-integration.md) for local-feed setup and limitations. Platform-only development packs use separate feeds under `artifacts/packages/<platform>/<version>`.
 
-On Mac with the matching workloads, Xcode and XcodeGen, build both native frameworks then run `bash scripts/pack.sh all`. This creates one public multi-target package and its transitive foundation/platform packages in `artifacts/packages/all`. The script checks conditional native dependency groups. M3 combined packaging and isolated Android/iOS Release builds have user-recorded Mac evidence in `docs/m3-status.md`; the changed M4 artifacts require their own verification.
+On Mac with the matching workloads, Xcode and XcodeGen, build both native frameworks then run `bash scripts/pack.sh all`. This creates one public multi-target package and its transitive foundation/platform packages in `artifacts/packages/all/0.0.1-beta.1`. The script checks conditional native dependency groups. M3 combined packaging and isolated Android/iOS Release builds have user-recorded Mac evidence in `docs/m3-status.md`; the changed M4 artifacts require their own verification.
 
 ## Package installation
 
 After producing the combined feed, add its absolute path and nuget.org as NuGet sources. Install only:
 
 ```xml
-<PackageReference Include="SuperTokens.Rownd.Maui" Version="0.0.1-m3" />
+<PackageReference Include="SuperTokens.Rownd.Maui" Version="0.0.1-beta.1" />
 ```
 
 NuGet selects the Android or iOS native dependency for the application's target framework. Distribute all four packages together; consumers need no sibling checkout or manually copied native binary. Target .NET 10 Android API 26+ or iOS 15+, with MAUI 10.0.20.
@@ -37,9 +39,9 @@ NuGet selects the Android or iOS native dependency for the application's target 
 `samples/Passwordless` uses the package by default. Restore it with the local feed plus nuget.org and your `RowndApplicationId`. `scripts/build-sample.sh` explicitly opts into source references for SDK development. To verify the combined feed in isolated Release consumers:
 
 ```sh
-ROWND_PACKAGE_SOURCE="$PWD/artifacts/packages/all" \
+ROWND_PACKAGE_SOURCE="$PWD/artifacts/packages/all/0.0.1-beta.1" \
   ROWND_APPLICATION_ID=io.supertokens.maui.buildcheck bash scripts/verify-package.sh android
-ROWND_PACKAGE_SOURCE="$PWD/artifacts/packages/all" \
+ROWND_PACKAGE_SOURCE="$PWD/artifacts/packages/all/0.0.1-beta.1" \
   ROWND_APPLICATION_ID=io.supertokens.maui.buildcheck bash scripts/verify-package.sh ios \
   -p:RuntimeIdentifier=iossimulator-arm64
 ```

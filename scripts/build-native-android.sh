@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 export ROWND_MAUI_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-python3 "$ROWND_MAUI_ROOT/scripts/check-native-sources.py"
+python3 "$ROWND_MAUI_ROOT/scripts/check-native-sources.py" --platform android
 python3 "$ROWND_MAUI_ROOT/scripts/prepare-android-source.py"
 native="${ROWND_ANDROID_SOURCE:-$ROWND_MAUI_ROOT/../supertokens-rownd-android}"
 cd "$native"

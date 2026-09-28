@@ -2,7 +2,7 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 [[ $(uname -s) == Darwin ]] || { echo 'Requires macOS, Xcode and xcodegen' >&2; exit 2; }
-python3 "$root/scripts/check-native-sources.py"
+python3 "$root/scripts/check-native-sources.py" --platform ios
 cd "$root/native/ios"
 xcodegen generate
 mkdir -p RowndMauiBridge.xcodeproj/project.xcworkspace/xcshareddata/swiftpm

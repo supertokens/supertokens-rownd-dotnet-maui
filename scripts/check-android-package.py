@@ -4,6 +4,7 @@ import hashlib
 import io
 import sys
 import zipfile
+import xml.etree.ElementTree as ET
 from collections import defaultdict
 from pathlib import Path
 
@@ -48,7 +49,8 @@ def check_package(path, supported_abis=SUPPORTED_ABIS):
 
 def main():
     root = Path(__file__).resolve().parent.parent
-    path = Path(sys.argv[1]) if len(sys.argv) > 1 else root / 'artifacts/packages/android/SuperTokens.Rownd.Native.Android.0.0.1-m3.nupkg'
+    version = ET.parse(root / 'Rownd.Package.props').findtext('./PropertyGroup/RowndPackageVersion')
+    path = Path(sys.argv[1]) if len(sys.argv) > 1 else root / f'artifacts/packages/android/{version}/SuperTokens.Rownd.Native.Android.{version}.nupkg'
     check_package(path)
     print('PASS: real facade/native classes and resources present; required JNI libraries unique for every supported ABI')
 

@@ -6,8 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>SuperTokens.Rownd.Native.Android</PackageId>
-    <Version>0.0.1-m3</Version>
-    <Description>Provisional local native Rownd facade binding.</Description>
+    <Description>Native Android facade binding for the SuperTokens Rownd MAUI beta.</Description>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Remove="StyleCop.Analyzers" />

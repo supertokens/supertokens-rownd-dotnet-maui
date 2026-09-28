@@ -6,8 +6,10 @@ import zipfile
 from pathlib import Path
 
 root = Path(__file__).resolve().parent.parent
-feed = Path(sys.argv[1]) if len(sys.argv) > 1 else root / 'artifacts/packages/all'
-with zipfile.ZipFile(feed / 'SuperTokens.Rownd.Maui.0.0.1-m3.nupkg') as package:
+version = ET.parse(root / 'Rownd.Package.props').findtext('./PropertyGroup/RowndPackageVersion')
+assert version, 'Missing centralized package version'
+feed = Path(sys.argv[1]) if len(sys.argv) > 1 else root / 'artifacts/packages/all' / version
+with zipfile.ZipFile(feed / f'SuperTokens.Rownd.Maui.{version}.nupkg') as package:
     spec = ET.fromstring(package.read('SuperTokens.Rownd.Maui.nuspec'))
     groups = spec.findall('.//{*}dependencies/{*}group')
     for platform, binding in [('android', 'Android'), ('ios', 'iOS')]:
@@ -17,8 +19,11 @@ with zipfile.ZipFile(feed / 'SuperTokens.Rownd.Maui.0.0.1-m3.nupkg') as package:
         native = {d for d in dependencies if d.startswith('SuperTokens.Rownd.Native.')}
         assert native == {f'SuperTokens.Rownd.Native.{binding}'}, native
         assert 'SuperTokens.Rownd.Foundation' in dependencies
-        assert (feed / f'SuperTokens.Rownd.Native.{binding}.0.0.1-m3.nupkg').is_file()
+        for dependency in group[0]:
+            if dependency.attrib['id'].startswith('SuperTokens.Rownd.'):
+                assert dependency.attrib['version'] in (version, f'[{version}]', f'[{version}, )'), dependency.attrib
+        assert (feed / f'SuperTokens.Rownd.Native.{binding}.{version}.nupkg').is_file()
         assert any(n.startswith('lib/') and platform in n.lower() and n.endswith('.dll')
                    for n in package.namelist()), f'Missing {platform} managed assembly'
-assert (feed / 'SuperTokens.Rownd.Foundation.0.0.1-m3.nupkg').is_file()
+assert (feed / f'SuperTokens.Rownd.Foundation.{version}.nupkg').is_file()
 print('PASS: one public package with both platform assemblies and conditional native dependencies')

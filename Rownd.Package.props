@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <RowndPackageVersion>0.0.1-beta.1</RowndPackageVersion>
+    <Version>$(RowndPackageVersion)</Version>
+  </PropertyGroup>
+</Project>

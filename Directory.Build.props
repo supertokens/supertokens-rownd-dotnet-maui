@@ -1,5 +1,6 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <Project>
+	<Import Project="Rownd.Package.props" />
 	<ItemGroup>
 		<PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.435" PrivateAssets="all" Condition="$(MSBuildProjectExtension) == '.csproj'" />
 	</ItemGroup>

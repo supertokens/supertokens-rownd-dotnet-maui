@@ -7,7 +7,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <MauiVersion>10.0.20</MauiVersion>
     <PackageId>SuperTokens.Rownd.Maui</PackageId>
-    <Version>0.0.1-m3</Version>
     <SupportedOSPlatformVersion Condition="$(TargetFramework.Contains('-android'))">26</SupportedOSPlatformVersion>
     <SupportedOSPlatformVersion Condition="$(TargetFramework.Contains('-ios'))">15</SupportedOSPlatformVersion>
   </PropertyGroup>

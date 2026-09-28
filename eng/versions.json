@@ -8,9 +8,20 @@
   "iosWorkload": "26.2.10217",
   "xcode": "26.2",
   "nativeSources": {
-    "android": { "directory": "supertokens-rownd-android", "commit": "cd08c866828232d130f32df3c1c47ee7fabe1a2c", "version": "0.1.14" },
-    "ios": { "directory": "supertokens-rownd-ios", "commit": "95bd10b6c5bec1678fa6094e031a3e1cbf900901", "version": "0.2.4" },
-    "hub": { "directory": "supertokens-rownd-hub", "commit": "086014e0f29c00722b260e69a9f28ff47512bf0f" }
+    "android": {
+      "directory": "supertokens-rownd-android",
+      "commit": "cd08c866828232d130f32df3c1c47ee7fabe1a2c",
+      "version": "0.1.14"
+    },
+    "ios": {
+      "directory": "supertokens-rownd-ios",
+      "commit": "aec3b4c4f092deb7ed5c468a679959014b1ede7d",
+      "version": "0.2.5"
+    },
+    "hub": {
+      "directory": "supertokens-rownd-hub",
+      "commit": "086014e0f29c00722b260e69a9f28ff47512bf0f"
+    }
   },
   "fixture": {
     "source": "android/test-server/server.ts",
