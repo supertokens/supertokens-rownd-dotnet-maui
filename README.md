@@ -1,7 +1,7 @@
 # SuperTokens Rownd MAUI — native bridge preview
 
 .NET 10 Android/iOS authentication replacement for customers upgrading `Rownd.Maui`.
-**M5 session automation is implemented; exact-candidate runtime and customer acceptance remain open.** See [M5 runbook](docs/testing-m5.md), [M5 evidence and final matrix](docs/m5-status.md), [M4 status](docs/m4-status.md) and [user-recorded runtime results](docs/testing.md).
+See the [integration guide](docs/beta-integration.md) for setup and usage, [beta status](docs/beta-status.md) for validated behavior and known limitations, and [release guide](docs/github-releases.md) for GitHub publication.
 
 Native Rownd owns Hub UI, token persistence, expiry and refresh. The C# facade does not initialize legacy authentication, import old `rownd_state`, or intercept HTTP requests. Existing customers must sign in once after replacing the old package.
 
@@ -24,7 +24,7 @@ ROWND_APPLICATION_ID=io.supertokens.maui.buildcheck bash scripts/verify-package.
 
 These commands build/pack without installing or launching a device. `io.supertokens.maui.buildcheck` is a build-only identifier, not the customer's identity. The beta candidate for GitHub distribution is `SuperTokens.Rownd.Maui` version `0.0.1-beta.1`; it has not been published to GitHub or NuGet.org. See the [beta integration guide](docs/beta-integration.md) for local-feed setup and limitations. Platform-only development packs use separate feeds under `artifacts/packages/<platform>/<version>`.
 
-On Mac with the matching workloads, Xcode and XcodeGen, build both native frameworks then run `bash scripts/pack.sh all`. This creates one public multi-target package and its transitive foundation/platform packages in `artifacts/packages/all/0.0.1-beta.1`. The script checks conditional native dependency groups. M3 combined packaging and isolated Android/iOS Release builds have user-recorded Mac evidence in `docs/m3-status.md`; the changed M4 artifacts require their own verification.
+On Mac with the matching workloads, Xcode and XcodeGen, build both native frameworks then run `bash scripts/pack.sh all`. This creates one public multi-target package and its transitive foundation/platform packages in `artifacts/packages/all/0.0.1-beta.1`. The script checks conditional native dependency groups. See [beta status](docs/beta-status.md) for the exact package build and runtime validation scope.
 
 ## Package installation
 
@@ -79,15 +79,13 @@ If token retrieval fails during a temporary outage, show a retryable error. Afte
 
 ## Sample and links
 
-See the [M3 validation runbook](docs/testing-m3.md) for package-only Release checks and physical-device acceptance. [Testing on a Mac](docs/testing.md) covers pinned tools, shared fixture setup, user-recorded simulator results and runtime driver prerequisites.
+The [passwordless sample](samples/Passwordless) demonstrates native sign-in, authentication state, request-scoped bearer tokens and sign-out. Configure your own app key, API origin/path, Hub URL and callback scheme. The development sample uses `rowndmauisample`; customer apps must register their own scheme.
 
-`samples/Passwordless` has real native actions and an ordinary bearer request. Embed non-secret startup JSON with `-p:RowndStartupConfig=/absolute/path/startup.json` for automatic configuration after process death; see the [M4 runbook](docs/testing-m4.md). Without it, enter configuration manually. The development scheme **`rowndmauisample`** is registered on both platforms; the Hub must use that same scheme. Customer apps must substitute their registration. The sample Android adapter captures auth URLs before base callbacks and sanitizes the intent seen by native ComponentActivity listeners, establishing one forwarding owner. iOS uses launch URL/activity, OpenUrl and ContinueUserActivity callbacks in its selected non-scene UIApplicationDelegate lifecycle. Both adapters wait for native readiness and an active host. Physical routing remains unrun; parameterized association-file generation awaits actual domain/signing inputs.
+Start beta link testing with a custom scheme. The [deep-linking section](docs/beta-integration.md#6-deep-linking-app-configuration-and-details-to-send-us) explains `AppLinkScheme`, Android/iOS callback forwarding, and the app/signing details needed later for verified HTTPS links.
 
-The adapter recognizes **login-only** URLs: the configured scheme's `://account/login` and configured Hub origin's HTTPS `/account/login`. `RowndLinks.Configure(config)` must precede callbacks. It retains **one latest pending link**, with a 16 KiB limit and two-minute lifetime, and coalesces exact duplicates for two seconds after native submission (32 recent entries). Pause/resume gates presentation readiness. Disposal clears the router and is terminal. Native submission is not an authentication acknowledgment. See the [M4 ownership/queue contract](docs/testing-m4.md#lifecycle-ownership) before adapting the sample host.
+The adapter accepts login callbacks at the configured scheme's `://account/login` and the configured Hub origin's HTTPS `/account/login`. Configure link handling before forwarding OS callbacks. A callback accepted by the router is not proof of authentication; verify the resulting state and a protected API request.
 
-Concrete Appium OTP/link/lifecycle journeys have [revision-specific Mac evidence](docs/m4-status.md#mac-validation--2026-09-25-to-2026-09-27). Run [M5 refresh/recovery](docs/testing-m5.md) separately after rebuilding the exact candidate; no M5 runtime pass is claimed. Captured generated links replace SMS delivery for this scope. Signed physical Release, HTTPS associations, browser fallback and customer integration remain distinct gates. Debug-only session probes are sample code and are excluded from Release and the SDK packages.
-
-Historical `Rownd/`, `examples/` and `Rownd.sln` are excluded from the new execution/build path. GitHub prerelease publication is explicit; see the release guide below.
+See [beta status](docs/beta-status.md) for simulator/emulator results and the remaining physical-device, initialization and lifecycle limitations. Historical `Rownd/`, `examples/` and `Rownd.sln` are excluded from the new build path.
 
 ## GitHub beta releases
 

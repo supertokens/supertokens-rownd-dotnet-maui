@@ -486,4 +486,4 @@ This is a limited beta, not a claim that every customer lifecycle and deployment
 
 Before distributing your app, test sign-in, one protected request, process termination/relaunch with the same session, and sign-out followed by another relaunch. Test links while the app is open, closed, and initializing; separately confirm that a link created on another device keeps the intended cross-device policy. Exercise a temporary backend outage and recovery without interpreting token exceptions as sign-out. Use your own signed Release builds for final acceptance.
 
-For repository validation details rather than customer setup, see [M5 testing](testing-m5.md), [M5 status](m5-status.md), and the [sample host implementation](../samples/Passwordless).
+For the tested beta scope and remaining limitations, see [beta status](beta-status.md). The [sample host implementation](../samples/Passwordless) demonstrates the platform adapters.
