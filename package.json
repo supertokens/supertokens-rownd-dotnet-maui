@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "release": "node -e \"console.error('Publishing postponed: bindings and release gates pending.'); process.exit(2)\""
+    "release": "python3 scripts/release-github.py"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.6.1",

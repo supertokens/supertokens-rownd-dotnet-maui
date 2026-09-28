@@ -87,4 +87,8 @@ The adapter recognizes **login-only** URLs: the configured scheme's `://account/
 
 Concrete Appium OTP/link/lifecycle journeys have [revision-specific Mac evidence](docs/m4-status.md#mac-validation--2026-09-25-to-2026-09-27). Run [M5 refresh/recovery](docs/testing-m5.md) separately after rebuilding the exact candidate; no M5 runtime pass is claimed. Captured generated links replace SMS delivery for this scope. Signed physical Release, HTTPS associations, browser fallback and customer integration remain distinct gates. Debug-only session probes are sample code and are excluded from Release and the SDK packages.
 
-Historical `Rownd/`, `examples/` and `Rownd.sln` are excluded from the new execution/build path. Publishing stays disabled.
+Historical `Rownd/`, `examples/` and `Rownd.sln` are excluded from the new execution/build path. GitHub prerelease publication is explicit; see the release guide below.
+
+## GitHub beta releases
+
+Run `npm run release` for an offline check of the prepared beta assets. After committing and pushing the release target, `npm run release -- --publish` creates a GitHub prerelease and uploads the validated packages and tutorial. It does not publish to NuGet.org. See [the release guide](docs/github-releases.md) for prerequisites, artifact layout and recovery.
