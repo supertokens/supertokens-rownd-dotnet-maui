@@ -1,6 +1,6 @@
 # M5 implementation, checks and final acceptance matrix
 
-Base **95df80857f2bf91328328f92283433f80071233b**, plus this uncommitted M5 work. **Implementation is available; runtime/customer acceptance is pending.** No integration/E2E/device test or service was started for this work. No commits, pushes, package publication or pin changes. Delegation tooling was unavailable in this session.
+M5 implementation commit **b502245**, based on **95df80857f2bf91328328f92283433f80071233b**. The Linux implementation/build evidence below is historical; subsequent Mac validation is recorded separately. **Mac validation: all four full M5 Debug journeys passed (Android/iOS, source/package), after fixing the Hub short-token handoff.** Customer/release acceptance remains distinct from local test results. No package publication or pin changes.
 
 ## Implemented
 
@@ -46,7 +46,7 @@ These are build-only baseline-pin artifacts, **not** the user's coordinated Andr
 
 Packages live under `artifacts/packages/android`. Debug APK lives under `samples/Passwordless/bin/Debug/net10.0-android`; Release APK under the isolated consumer's `bin/Release/net10.0-android`. These app identities/signatures are build fixtures, not customer device-signing acceptance. Final metadata/hash collection is retained at `/tmp/opencode/rownd-m5-artifacts.json`; no credential/capture files are included.
 
-## Final acceptance matrix
+## Historical Linux acceptance matrix
 
 P1 correction verification (2026-09-28): **111 managed unit tests**, **62 Python offline tests**, Python compilation and whitespace checks passed; Android source Debug sample rebuilt with **47 existing warnings, 0 errors**. Logs: `/tmp/opencode/rownd-m5-p1-{managed,python,debug}.log`. The old Debug hash `c92c23b23e7da874abb3cdc8d2bcd7770b7e257948113b8204ddfc8fa0b1e796` and its entry in `/tmp/opencode/rownd-m5-artifacts.json` are **superseded**, not hashes of the corrected sample. Package and isolated Release hashes above remain historical build results; they were not rebuilt for this Debug-only probe correction. No integration/E2E/device/services ran.
 
@@ -72,9 +72,67 @@ Historical Mac evidence is retained in [M4 status](m4-status.md); it is not reas
 | Source reproducibility / distribution | OPEN | OPEN | Exact candidate source, Core digest, native build provenance; deferred iOS release |
 | Publication / provider SMS | DEFERRED | DEFERRED | Separate authorization; not part of M5 |
 
-## Real blockers and next Mac work
+## Historical Linux blockers and requested Mac work
 
 1. The coordinated M4 Android/Hub persistence fix exists only on the user's Mac and was not fetched here. Preserve its local source and [recorded strict runs](m4-status.md#local-coordinated-fix-and-strict-reruns). Current pins stay unchanged. Baseline packages above cannot claim candidate behavior. Full-source pin checks deliberately reject dirty/unavailable candidates; record candidate revisions and local diff hashes rather than disguising that result. Candidate source availability blocks exact-candidate runtime validation, **not this implemented automation**.
 2. iOS pin **95bd10b6c5bec1678fa6094e031a3e1cbf900901** is absent locally, and Linux has no Xcode/iOS toolchain. Never substitute published 0.2.4 or a nearby commit. Native fatal-initialization error mapping and deferred upstream iOS publication remain release gates.
 3. Core image remains unpinned; record the actual digest. Physical HTTPS/signing/device inputs and package-only runtime evidence remain outstanding. No existing M4 result closes these M5 gates.
 4. On Mac: rebuild the exact native candidate; prepare/type-check the overlay; start the shared 90-second fixture/Hub; build/install startup-configured Debug apps; run `refresh-recovery` for Android then iOS with explicit Appium sessions. Preserve failed runs as failures. Repack the exact candidate, use isolated consumers/caches, hash outputs, rerun package-only and signed Release/manual gates. Commands and config are in [testing-m5.md](testing-m5.md).
+
+## Mac candidate validation — 2026-09-28
+
+Pulled `main` to `b502245`. The coordinated native candidate is Android `f7f4a5f921ca8f44ab6902ce2754ac84578f3a90`, iOS `95bd10b6c5bec1678fa6094e031a3e1cbf900901`, and Hub `d2c0619ff661200fe4f404f3d8d2d82fa590c165` plus the short-lived-token fix described below (committed as `17f98e8`). Declared pins and package versions remain unchanged; these are candidate results, not an all-pin source-check pass.
+
+### Issues found and changes
+
+- The Hub used a five-minute early-refresh threshold as its authentication/expiry predicate. With M5's real 90-second tokens, successful backend login never sent credentials to either native SDK. Both responsive device runs reproduced the consume-success/host-signed-out failure. The Hub now distinguishes actual finite JWT expiry for authentication/handoff from the five-minute proactive legacy-migration refresh window. Short-token native-handoff and expiry-boundary regression tests were added. No Android or iOS SDK source change was needed for this fix.
+- The M5 runner could replace the original test failure with a secondary cleanup error. Cleanup now attempts both required controls, preserves an existing failure, and still fails an otherwise successful run if cleanup fails. Three regression tests cover this behavior.
+- Initial Android device/ADB responsiveness failed after incremental installation. Preserving disk state, cold-booting our emulator, and reinstalling the exact APK with non-incremental installation restored responsiveness. No product crash signature was captured; the initial failure remains recorded.
+- Two initial iOS attempts were blocked by an Apple Account verification dialog. Simulator computer-use inspection showed the overlay although Appium exposed the underlying host controls. Dismissing the unrelated prompt allowed real login to proceed and expose the separate Hub issue.
+- Initial package Debug invocations from the projectless working directory selected an unpinned SDK. Those generated outputs were rejected/preserved. Both consumers were rebuilt from their own directories with `global.json` selecting SDK/workload `10.0.200`; no bypass flags were used.
+
+### Build and fixture evidence
+
+- .NET/workload set `10.0.200`, Xcode `26.2`; MAUI 10.0.20, Android workload 36.1.43, iOS workload 26.2.10217 and JDK 21.0.12.1 were retained.
+- Shared local fixture: API `127.0.0.1:3139`, Hub `127.0.0.1:8787`, actual Core access-token validity **90 seconds**, failure switch **503**, embedded initialization delay **0**. Journeys are sequential; no session fabrication, JWT editing, confirmation click, or policy relaxation. The pinned app configuration leaves `enforce_same_device_passwordless_sign_in` unset, retaining Hub defaults; any same-device confirmation chooser remains a test failure.
+- Core image: `supertokens/supertokens-postgresql@sha256:8302ef1766b05c2b85cbed85de8d6e7fb38dedfe041918327e24e5b33d6f2590`.
+- The stock harness preparation correctly rejects the newer Android HEAD. For this run, the exact pinned `test-server` was exported from `cd08c866828232d130f32df3c1c47ee7fabe1a2c` and transformed using the current M5 overlay function. The candidate test-server and dependency files were verified unchanged from that pin. Overlay TypeScript check passed; the sibling was not checked out or modified.
+- Native Android facade/runtime export passed. Clean iOS device/simulator archives, XCFramework checker and **2/2 bridge XCTest cases** passed. Native iOS source remained clean. Previous generated outputs/feed were preserved.
+- Source Debug builds passed: Android **51 warnings, 0 errors**; iOS **37 warnings, 0 errors**. Fresh combined package feed and strict Android payload/dependency checks passed; all **119** packaged iOS framework files match the rebuilt framework.
+- Isolated package-only Release and Debug consumers passed on both platforms. Android **0 warnings/errors**; iOS **1 existing nullability warning, 0 errors**. Each restore contains exactly **3 Rownd packages, 0 project libraries**, in a fresh private cache.
+- Offline validation: **111 managed tests**, **65 Python tests**, and corrected Hub **313 unit tests passed / 1 skipped**, type checks/build passed. The opt-in live integration environment check passed.
+
+### Runtime results
+
+| Runtime check | Source Debug | Package-only Debug |
+| --- | --- | --- |
+| Android full `refresh-recovery` | **PASS**, corrected Hub, run 3 | **PASS**, first attempt |
+| iOS full `refresh-recovery` | **PASS**, corrected Hub, run 4 | **PASS**, first attempt |
+| Live managed fixture/environment and fresh phone capture | **PASS** | Shared fixture checks |
+
+Each complete journey covers both real email OTP and untargeted external phone links; saved-token 200 then real-expiry 401; first explicit getter/counter/exact-candidate same-user/session 200; 503 fault without false sign-out and subsequent recovery; current and expired-token process restart; sign-out persistence; and fresh login with a different session. Source Android run 3, source iOS run 4, and the first package-only run on each platform completed successfully with all assertions and final cleanup. Each completed 25 probe operations in addition to real login, protected identity and process/OS dispatch assertions. Approximate durations: Android source 809 seconds, Android package 839 seconds, iOS source 660 seconds, iOS package 654 seconds. Initial failed attempts remain recorded; they are not reassigned to the corrected candidate.
+
+The dedicated M5 fixture and its test containers were stopped after all four successful journeys and cleanup; the test apps remain signed out with probe memory cleared.
+
+### Remaining acceptance boundaries
+
+The M4-only replay/expired-link, delayed-startup, cross-device and presenter-cancellation matrix was not rerun against this new Hub patch; its older results remain historical. Signed physical Release runtime, verified HTTPS/app associations and real-browser fallback, customer-owned backend/signing integration, legacy upgrade checks, and the previously documented native disposal/active-Hub recreation gates remain separate. Local simulator/emulator results do not close those gates. No package publication, provider SMS or push was performed for this validation.
+
+### Tested artifact identities
+
+All packages are provisional `0.0.1-m3`; version alone does not identify these bytes. Android hashes are SHA-256 of APKs. The source iOS value hashes the canonical sorted relative-file/hash map; package iOS values hash the saved sorted per-file manifest JSON. Neither iOS value is a signature/provisioning claim.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `SuperTokens.Rownd.Foundation.0.0.1-m3.nupkg` | `19bc258c86e6b5c1a60752eaf3f27c539cf44f1376d8de95cf58bc4a193c2483` |
+| `SuperTokens.Rownd.Maui.0.0.1-m3.nupkg` | `42dace3a3d57c795577c6baf67311dcc1b5a61c102f247f9fff60c1499556967` |
+| `SuperTokens.Rownd.Native.Android.0.0.1-m3.nupkg` | `1e351f3a2f6c5cf94d76b877b54b5168aba0b44d6537000e351991a49a2c5e76` |
+| `SuperTokens.Rownd.Native.iOS.0.0.1-m3.nupkg` | `b0bbf83e1313aba8089cf95c400ae6d51fde6bc398d9b17b1e2e4e97fa9d3023` |
+| `Package Android Debug APK` | `ca2f9119e67f7db040df0cd796785329f0ca3a3de83a5fdcfb6971adaba542cc` |
+| `Package Android Release APK` | `42c3d51a99a7c3855e74b327bc62ada43570acff105a6a6589f7256112e04024` |
+| Source Android Debug APK | `63957167c135b6025ba4f510b9cf393eb9a77a60e08783504a18f7807eef7934` |
+| Source iOS Debug file map | `264b47d6df3f1e3e0cb9e68ccbd1fe1dd8bf504735c9c3ffa86a78ba7ac1de5f` |
+| Package iOS Debug file manifest | `11aa821d80300454423c519123bb1c8105a7177a9d940cbe99070d0a9314e785` |
+| Package iOS Release file manifest | `6152d058b726880aaeb9876659449424ff6c60180632c78074504a406529a52a` |
+
+The iOS XCFramework has a 119-file hash manifest; all 119 packaged framework files match the rebuild. Candidate source, local patch, file manifests and logs are retained in the local M5 evidence set. Raw backend/Appium/device logs remain private because they may contain synthetic credentials.

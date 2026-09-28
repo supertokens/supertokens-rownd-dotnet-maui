@@ -1,5 +1,6 @@
 """M5 real-login orchestration. Only the Debug sample retains access tokens."""
 import json
+import sys
 import time
 from appium_smoke import request, wait
 
@@ -98,6 +99,24 @@ class RefreshRecovery:
             j.external_open(callback(capture['urlWithLinkCode'], j.config['link-scheme']))
         return j.complete(identity)
 
+    def cleanup(self, failed, clear=True):
+        # Always attempt both controls. Preserve the original journey failure if
+        # Appium or the fixture is also unavailable during final cleanup.
+        errors = []
+        controls = [lambda: self.availability(False)]
+        if clear:
+            controls.append(lambda: self.probe('clear', 'Cleared'))
+        for control in controls:
+            try:
+                control()
+            except Exception as error:
+                errors.append(error)
+        if errors:
+            if not failed:
+                raise errors[0]
+            print('CLEANUP INCOMPLETE: restore refresh availability and clear/restart the sample before rerunning',
+                  file=sys.stderr, flush=True)
+
     def run(self):
         j = self.j
         seconds = lifetime(request(j.harness + '/test/m5/config'))
@@ -139,7 +158,7 @@ class RefreshRecovery:
                         raise AssertionError('Getter did not reach failing native refresh')
                     self.unchanged_login(baseline, completions)
                 finally:
-                    self.availability(False)
+                    self.cleanup(failed=sys.exc_info()[0] is not None, clear=False)
                 before = self.counters()
                 self.refreshed_candidate(before, user, session, signed_out)
                 self.unchanged_login(baseline, completions)
@@ -176,8 +195,5 @@ class RefreshRecovery:
                 j.driver.click('sign-out')
                 wait(lambda: j.driver.text('auth-status') == 'Signed out')
         finally:
-            try:
-                self.availability(False)
-            finally:
-                self.probe('clear', 'Cleared')
+            self.cleanup(failed=sys.exc_info()[0] is not None)
         print('PASS: refresh-recovery; OTP and phone link, expiry, native refresh, 503 recovery, relaunch, sign-out')

@@ -121,6 +121,33 @@ class RefreshBoundaryTests(unittest.TestCase):
         self.assertEqual([call.args for call in availability.call_args_list], [(False,), (False,)])
         probe.assert_called_once_with('clear', 'Cleared')
 
+    def test_cleanup_failure_does_not_replace_original_journey_failure(self):
+        self.journey.driver.text.return_value = 'Signed out'
+        with patch('refresh_recovery.request', return_value={'accessTokenSeconds': 90, 'refreshFailureStatus': 503}), \
+             patch('refresh_recovery.wait', side_effect=lambda check: check()), \
+             patch.object(self.flow, 'availability', side_effect=[None, RuntimeError('fixture unavailable')]) as availability, \
+             patch.object(self.flow, 'probe', side_effect=RuntimeError('device unavailable')) as probe, \
+             patch.object(self.flow, 'login', side_effect=AssertionError('original login failure')), \
+             patch('sys.stderr') as stderr:
+            with self.assertRaisesRegex(AssertionError, 'original login failure'):
+                self.flow.run()
+        self.assertEqual([call.args for call in availability.call_args_list], [(False,), (False,)])
+        probe.assert_called_once_with('clear', 'Cleared')
+        self.assertTrue(stderr.write.called)
+
+    def test_cleanup_failure_fails_otherwise_successful_journey_and_attempts_both_controls(self):
+        with patch.object(self.flow, 'availability', side_effect=RuntimeError('fixture unavailable')), \
+             patch.object(self.flow, 'probe') as probe:
+            with self.assertRaisesRegex(RuntimeError, 'fixture unavailable'):
+                self.flow.cleanup(failed=False)
+        probe.assert_called_once_with('clear', 'Cleared')
+
+    def test_outage_cleanup_does_not_clear_candidate_probe_state(self):
+        with patch.object(self.flow, 'availability') as availability, patch.object(self.flow, 'probe') as probe:
+            self.flow.cleanup(failed=False, clear=False)
+        availability.assert_called_once_with(False)
+        probe.assert_not_called()
+
     def test_both_real_login_paths_are_selected_and_outage_restored(self):
         self.journey.driver.text.side_effect = lambda key: {'auth-status': 'Signed out', 'process-id': 'p', 'auth-completions': '1'}[key]
         # Bypass waits only: orchestration must choose both actual login paths and

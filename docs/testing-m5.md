@@ -1,6 +1,6 @@
 # M5 session expiry, refresh and recovery
 
-**User-run Mac commands; no M5 runtime result is claimed.** Preserve .NET/workload set 10.0.200, MAUI 10.0.20, Android 36.1.43, iOS 26.2.10217, JDK 21.0.12 and Xcode 26.2. See [status/matrix](m5-status.md) and [M4 startup/device setup](testing-m4.md).
+**Mac runbook; actual results and source revisions are recorded in [M5 status](m5-status.md).** Preserve .NET/workload set 10.0.200, MAUI 10.0.20, Android 36.1.43, iOS 26.2.10217, JDK 21.0.12 and Xcode 26.2. See [status/matrix](m5-status.md) and [M4 startup/device setup](testing-m4.md).
 
 ## Shared real fixture
 
@@ -26,6 +26,12 @@ node --import ./artifacts/m4-harness/node_modules/tsx/dist/loader.mjs \
 ```
 
 Change origins/port for the real device setup; both embedded startup JSON and runner JSON must match. Restarting the fixture is necessary for a changed lifetime. Record actual Core image digest (upstream remains unpinned), lifetime, selected same-device policy and source revisions/local patch hashes. The runner validates real expiry by a saved-token **401**, not by trusting its lifetime setting alone. This fixture is test-only; its unauthenticated controls/capture endpoints must remain restricted to the local test environment.
+
+### Short-lived-token Hub prerequisite
+
+The Mac M5 run exposed a Hub bug: the original `isTokenExpired` subtracts five minutes and is also used to gate native authentication handoff. Every permitted M5 lifetime is therefore rejected immediately, despite successful backend consumption. Use the reviewed Hub candidate that separates actual expiry for authentication/handoff from the proactive legacy-migration refresh window; retain its revision and patch hash. The original Hub pin does not close this gate. Do not increase the lifetime outside the runner bounds or relax expiry/same-device assertions to obtain a pass.
+
+Before automation, inspect the simulator for system dialogs. An Apple Account verification prompt can intercept taps while Appium still exposes the underlying MAUI controls. Dismiss unrelated prompts through the simulator UI; do not treat a successful WebDriver click response as proof that the app acted on it.
 
 ## Build/install the Debug sample
 
@@ -56,7 +62,7 @@ export ROWND_E2E_CONFIG='/absolute/path/e2e-ios.json'
 ROWND_RUN_E2E=1 bash scripts/test-passwordless.sh --platform ios --scenario refresh-recovery
 ```
 
-Run sequentially on a dedicated fixture. Each invocation runs **both email OTP and phone magic-link login**, and repeats a fresh real login after sign-out. Allow at least 10 minutes per platform with the default lifetime. Existing `smoke`/`phone-magic-link` success does not substitute for this scenario.
+Run sequentially on a dedicated fixture. The harness `stRefresh` counter counts all requests to `/auth/session/refresh`, including browser requests; it does not identify the caller by itself. Interpret its increase together with the explicit-getter ordering, exact returned-token assertion, unchanged login counters and no-visible-Hub checks. A pre-handoff browser refresh is not native refresh evidence. Each invocation runs **both email OTP and phone magic-link login**, and repeats a fresh real login after sign-out. Allow at least 10 minutes per platform with the default lifetime. Existing `smoke`/`phone-magic-link` success does not substitute for this scenario.
 
 ### Assertions and controls
 
